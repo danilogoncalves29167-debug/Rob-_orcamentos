@@ -7,7 +7,9 @@ st.title("🤖  Inteligência Orçamentária Avançada")
 st.subheader("Gere orçamentos e relatórios técnicos em segundos")
 st.write("---")
 
-client = genai.Client(api_key="AQ.Ab8RN6Kr7eOrlYmAHBMQB0ioHQpvWNJob5Lk19-ZZijf4_yRMg")
+# Configuração segura da chave usando os Segredos do Streamlit
+api_key = st.secrets["GEMINI_API_KEY"]
+client = genai.Client(api_key=api_key)
 
 pergunta = st.text_area("Digite as especificações da obra ou usina para calcular:", 
                         placeholder="Ex: Preciso do orçamento completo de materiais e mão de obra para um galpão de alvenaria de 200m²...")
