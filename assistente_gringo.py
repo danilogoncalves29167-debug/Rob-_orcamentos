@@ -1,4 +1,3 @@
-
 import streamlit as st
 import google.generativeai as genai
 
@@ -19,12 +18,14 @@ if st.button("Generate Estimate Report"):
     if pergunta:
         with st.spinner("Processing..."):
             try:
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                # CORREÇÃO AQUI: Nome com o prefixo correto para a biblioteca antiga
+                model = genai.GenerativeModel('models/gemini-1.5-flash')
+                
                 response = model.generate_content(
                     f"You are a professional construction estimator. Provide a detailed estimate in English and USD for: {pergunta}"
                 )
+                st.write("---")
                 st.write("### 📋 Estimate Report")
                 st.write(response.text)
             except Exception as e:
                 st.error(f"Error: {e}")
-
