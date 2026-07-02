@@ -18,8 +18,8 @@ if st.button("Generate Estimate Report"):
     if pergunta:
         with st.spinner("Processing..."):
             try:
-                # Mudando para o modelo clássico que não aceita erro 404
-                model = genai.GenerativeModel('gemini-pro')
+                # Ajustado para a versão clássica exata que o sistema antigo reconhece
+                model = genai.GenerativeModel('gemini-1.0-pro')
                 
                 response = model.generate_content(
                     f"You are a professional construction estimator. Provide a detailed estimate in English and USD for: {pergunta}"
