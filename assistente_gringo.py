@@ -1,54 +1,59 @@
 import streamlit as st
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 
-# Configuração da página em inglês para o mercado gringo
-st.set_page_config(page_title="AI Budget & Estimate System", page_icon="🤖", layout="centered")
+# Configuração da página profissional
+st.set_page_config(
+    page_title="Global Construction Estimator",
+    page_layout="centered"
+)
 
-st.title("🤖 Advanced AI Estimation System")
-st.subheader("Generate professional construction and technical estimates in seconds")
+# Título limpo e profissional
+st.title("Global Construction Estimator")
+st.markdown("##### Professional Technical and Cost Estimation System")
 st.write("---")
 
-# Configuração segura da chave usando os Segredos do Streamlit
+# Configuração segura da chave usando os Secrets nos bastidores
 api_key = st.secrets["GEMINI_API_KEY"]
-client = genai.Client(api_key=api_key)
+genai.configure(api_key=api_key)
 
-# Placeholder com exemplos internacionais (ex: sq ft, commercial building)
-pergunta = st.text_area("Enter the project specifications or material requirements:", 
-                        placeholder="Ex: I need a complete cost estimate for labor and materials for a 2,000 sq ft concrete block warehouse...")
+# Área de entrada direta e sem enrolação
+pergunta = st.text_area("Enter project specifications or material requirements:", 
+                        placeholder="e.g., Provide a cost estimate for a 2,500 sq ft residential build...",
+                        height=150)
 
-if st.button("📊 GENERATE IMMEDIATE ESTIMATE"):
+# Botão de ação direto
+if st.button("Generate Estimate Report", use_container_width=True):
     if pergunta.strip():
-        with st.spinner("The AI is calculating costs, local rates, and margins... Please wait."):
+        with st.spinner("Processing calculations..."):
             try:
-                # Criando uma instrução de sistema para o robô agir como um orçamentista internacional
-                system_instruction = """
-                You are an expert international construction estimator and cost analyst. 
-                Your job is to provide detailed, professional, and structured cost estimates based on the user's request.
+                # Usando o modelo estável para o sistema funcionar direto
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 
-                Guidelines:
-                1. If the user does not specify a country, default to US standards (currency in USD $, measurements in square feet, inches, yards, etc.).
-                2. Breakdown the estimate into: Material Costs, Labor Costs, Equipment, and Estimated Timeline/Margin.
-                3. Include a disclaimer that estimates are based on market averages and should be verified locally.
-                4. Keep a highly professional, corporate technical tone.
-                5. Always reply in English (or the language specified by the client request).
+                system_instruction = """
+                You are a Professional Construction Estimator.
+                Provide a structured, technical cost and material estimation based on the user's input.
+                
+                RULES:
+                1. Always respond in English.
+                2. Structure the report clearly: Summary, Estimated Materials, Labor, and Contingency.
+                3. Use standard international metrics and USD currency.
+                4. End with a professional engineering disclaimer.
                 """
-
-                # Rodando o modelo com a instrução do sistema embutida
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=pergunta,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                        temperature=0.3 # Temperatura mais baixa para o cálculo ser mais preciso e menos "criativo"
-                    )
+                
+                response = model.generate_content(
+                    f"{system_instruction}\n\nUser Request: {pergunta}"
                 )
-                st.success("✅ Estimate Generated Successfully!")
-                st.markdown(response.text)
+                
+                st.write("---")
+                st.write("### 📋 Estimate Report")
+                st.write(response.text)
+                
             except Exception as e:
-                st.error(f"Server connection error: {e}")
+                st.error(f"System temporarily unavailable. Please try again. [Details: {e}]")
     else:
-        st.warning("Please enter some project details before generating the estimate.")
+        st.warning("Please enter project details first.")
 
+# Rodapé corporativo padrão
 st.write("---")
-st.caption("© Private Enterprise Artificial Intelligence System - Exclusive Corporate License.")
+st.markdown("<div style='text-align: center; color: #777; font-size: 0.8rem;'>Global Construction Estimator © All Rights Reserved</div>", unsafe_allow_with_html=True)
+
