@@ -1,33 +1,33 @@
 import streamlit as st
 from google import genai
 
-st.set_page_config(page_title="Sistema Orçamentista Inteligente", page_icon="🤖", layout="centered")
+st.set_page_config(page_title="Smart Construction Estimator", page_icon="🤖", layout="centered")
 
-st.title("🤖  Inteligência Orçamentária Avançada")
-st.subheader("Gere orçamentos e relatórios técnicos em segundos")
+st.title("🤖 Advanced Budget & Estimation AI")
+st.subheader("Generate technical cost estimates and reports in seconds")
 st.write("---")
 
-# Configuração segura da chave usando os Segredos do Streamlit
+# Secure API Key configuration using Streamlit Secrets
 api_key = st.secrets["GEMINI_API_KEY"]
 client = genai.Client(api_key=api_key)
 
-pergunta = st.text_area("Digite as especificações da obra ou usina para calcular:", 
-                        placeholder="Ex: Preciso do orçamento completo de materiais e mão de obra para um galpão de alvenaria de 200m²...")
+pergunta = st.text_area("Enter the project specifications or blueprints data to calculate:", 
+                        placeholder="e.g., I need a complete bill of materials and labor cost estimation for a 2,000 sq ft brick warehouse...")
 
-if st.button("📊  GERAR ORÇAMENTO IMEDIATO"):
+if st.button("📊 GENERATE INSTANT ESTIMATE"):
     if pergunta.strip():
-        with st.spinner("A Inteligência está calculando os custos e margens... Aguarde."):
+        with st.spinner("AI is calculating costs, materials, and margins... Please wait."):
             try:
                 response = client.models.generate_content(
                     model='gemini-2.5-flash',
                     contents=pergunta,
                 )
-                st.success("✅  Orçamento Gerado com Sucesso!")
+                st.success("✅ Estimate Generated Successfully!")
                 st.markdown(response.text)
             except Exception as e:
-                st.error(f"Erro na conexão com o servidor: {e}")
+                st.error(f"Server connection error: {e}")
     else:
-        st.warning("Por favor, digite alguma informação sobre a obra antes de calcular.")
+        st.warning("Please enter some project specifications before calculating.")
 
 st.write("---")
-st.caption("© Sistema Privado de Inteligência Artificial - Licença Exclusiva Corporativa.")
+st.caption("© Private Artificial Intelligence System - Exclusive Corporate License.")
