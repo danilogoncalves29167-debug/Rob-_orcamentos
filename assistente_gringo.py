@@ -2,66 +2,67 @@ import streamlit as st
 from google import genai
 import time
 
-# Painel do Robô Autônomo
-st.title("🤖 Robô Minerador de Comissões v1")
-st.write("Status: [ATIVO] - Rodando ciclos automáticos em segundo plano...")
+# Painel do Robô Autônomo - MODO PIRATA GLOBO
+st.set_page_config(page_title="Robô Minerador CPA", page_icon="🤖", layout="centered")
+
+st.title("🤖 Robô Minerador de Comissões v2.0")
+st.write("Status: [ATIVO] - Focado em extrair dólares de gringos otários 🇺🇸 🇬🇧")
 st.write("---")
 
 # Configuração da API
 api_key = st.secrets["GEMINI_API_KEY"]
 client = genai.Client(api_key=api_key)
 
-# Configurações do seu QG (Você configura aqui e ele trabalha sozinho)
-# TODO: Substitua o texto abaixo pelo seu link real da Hotmart (ex: https://go.hotmart.com/ABC1234)
-link_padrao_hotmart = "DIGITE_AQUI_SEU_LINK_DA_HOTMART"
+# Configurações do seu QG para CPA (OGAds / CPAGrip)
+link_padrao_cpa = "DIGITE_AQUI_SEU_LINK_DE_CPA"
 
-affiliate_link = st.text_input("🔗 Seu Link de Afiliado da Hotmart:", link_padrao_hotmart)
-n_articles = st.slider("🔄 Número de ciclos automatizados por dia:", 5, 50, 10)
+cpa_link = st.text_input("🔗 Seu Link de Oferta CPA (OGAds / CPAGrip):", link_padrao_cpa)
+
+# Seleção do Alvo (Onde a grana tá bombando hoje em 2026)
+nicho_alvo = st.selectbox(
+    "🎯 Escolha a Isca (Nicho Atualizado 2026):",
+    ["Brawl Stars (Free Gems Cheat)", "Roblox (Free Robux Generator)", "TikTok Premium App Mod"]
+)
+
+n_copies = st.slider("🔄 Quantas variações de copy gerar por ciclo:", 3, 15, 5)
 
 st.write("---")
 
-if st.button("🚀 Iniciar Motor Autônomo"):
-    if affiliate_link == "DIGITE_AQUI_SEU_LINK_DA_HOTMART" or affiliate_link == "":
-        st.error("⚠️ Mano, você esqueceu de colocar o seu link da Hotmart! Coloca ele ali em cima primeiro.")
+if st.button("🚀 Iniciar Motor de Atração (CPA)"):
+    if cpa_link == "DIGITE_AQUI_SEU_LINK_DE_CPA" or cpa_link == "":
+        st.error("⚠️ Mano, você esqueceu de colocar o seu link de CPA! Pega lá na OGAds ou CPAGrip e cola aí.")
     else:
-        st.info("Motor iniciado. Minerando tendências de mercado...")
+        st.info(f"Motor iniciado. Gerando iscas altamente viciantes para o nicho: {nicho_alvo}...")
         
-        # Lista de tendências que o robô detecta para criar os posts
-        mock_trends = [
-            "Melhores ferramentas de IA para marketing digital 2026", 
-            "Como automatizar o atendimento do seu negócio de graça", 
-            "Como escalar vendas online trabalhando de casa"
-        ]
+        # O prompt agora ensina a IA a agir como um adolescente americano em fóruns/redes sociais
+        prompt = (
+            f"You are a tech-savvy 16-year-old American teenager posting on Twitter, TikTok comments, and Reddit. "
+            f"Write {n_copies} different short, punchy, and highly persuasive social media comments/posts "
+            f"convincing other kids that you found a working, undetected exploit/glitch to get free stuff for '{nicho_alvo}'.\n\n"
+            f"CRITICAL RULES:\n"
+            f"1. Use current US teen slang (e.g., 'no cap', 'fr fr', 'it actually worked', 'goated', 'bruh', 'blessed').\n"
+            f"2. Keep them short (under 280 characters each) so they look natural, like real comments.\n"
+            f"3. Include the tracking link naturally in every single copy: {cpa_link}\n"
+            f"4. Do NOT sound like an ad or a salesman. Sound like a hyped kid who just got lucky.\n"
+            f"5. Separate each copy clearly with numbers."
+        )
         
-        for i, trend in enumerate(mock_trends[:n_articles]):
-            st.write(f"🔄 **Ciclo {i+1}:** Minerando tendência: *'{trend}'*...")
-            
-            # O robô cria o conteúdo focado na tendência e injeta o SEU link da Hotmart
-            prompt = (
-                f"Você é um especialista em automação e vendas. "
-                f"Escreva um artigo altamente persuasivo e focado em conversão sobre: '{trend}'. "
-                f"Inclua uma recomendação natural para o leitor conhecer o sistema parceiro usando EXATAMENTE este link: {affiliate_link}. "
-                f"Escreva em português do Brasil, usando formatação clara (Markdown), títulos em negrito e chamadas fortes para ação (CTA). "
-                f"Deixe o texto pronto para publicação."
+        try:
+            # Usando o mesmo modelo 2.5-flash que você configurou
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt
             )
             
-            try:
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=prompt
-                )
-                
-                # Mostra o resultado na tela do Streamlit
-                st.success(f"✅ Artigo para '{trend}' gerado com sucesso!")
-                with st.expander(f"Ver post automatizado: {trend}"):
-                    st.markdown(response.text)
-                    st.caption(f"📢 Status: Publicado na rede com o seu link da Hotmart: {affiliate_link}")
-                    
-                # Delay de segurança para não tomar bloqueio
-                time.sleep(2)
-                
-            except Exception as e:
-                st.error(f"Erro no ciclo {i+1}: {e}")
-                
-        st.success("🏁 Todos os ciclos de hoje foram concluídos! O Antônio vai continuar escaneando novas tendências.")
+            st.success("✅ Iscas em inglês geradas com sucesso!")
+            
+            st.write("### 📥 Só copiar e bombardear na gringa:")
+            st.markdown(response.text)
+            
+            st.write("---")
+            st.caption("💡 **Dica de Pirata:** Vá nos vídeos mais recentes do YouTube/TikTok sobre esse jogo na gringa ou busque por tweets recentes e jogue essas copies nos comentários. Deixa o robô trabalhar!")
+            
+        except Exception as e:
+            st.error(f"Erro no processador da IA: {e}")
+            
         
