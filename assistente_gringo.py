@@ -17,7 +17,8 @@ def run_web():
     app.run(host='0.0.0.0', port=port)
 # -------------------------------------------------------
 
-TOKEN = "8940439614:AAHYjqmLiicZ6dclPR6sUOXqu1l8g4r-khE"
+# TOKEN NOVO ATUALIZADO
+TOKEN = "8657612688:AAHYGknApZ9uISY65F6bEAMi93-QkL3HNUY"
 bot = telebot.TeleBot(TOKEN)
 
 # SEU ID OFICIAL DE PATRÃO CONFIGURADO
@@ -29,7 +30,7 @@ usuarios_vip = set()
 def baixar_midia(url, extrair_audio=False):
     ydl_opts = {
         'outtmpl': 'downloads/%(id)s.%(ext)s',
-        'noplaylist': False,  # Permite baixar carrossel de fotos ou playlists se houver
+        'noplaylist': False,
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
     }
     
@@ -47,7 +48,6 @@ def baixar_midia(url, extrair_audio=False):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         
-        # Se for uma playlist (como carrossel de fotos do TikTok)
         if 'entries' in info:
             arquivos = []
             for entry in info['entries']:
@@ -67,7 +67,7 @@ def baixar_midia(url, extrair_audio=False):
 def send_welcome(message):
     chat_id = message.chat.id
     if chat_id == ADMIN_ID:
-        bot.send_message(chat_id, "Salve, chefe! O bot tá brabo. Manda o link normal para vídeo ou `/audio [link]` para puxar o MP3! 🔥")
+        bot.send_message(chat_id, "Salve, chefe! O bot tá com token novo e blindado. Manda o link ou `/audio [link]`! 🔥")
         return
 
     bot.send_message(
@@ -163,9 +163,8 @@ def executar_download_e_enviar(chat_id, url):
         arquivos = baixar_midia(url, extrair_audio=False)
         for arq in arquivos:
             if os.path.exists(arq):
-                # Se for foto (carrossel do TikTok)
                 if arq.endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                    with open(arq, 'foto') as f:
+                    with open(arq, 'rb') as f:
                         bot.send_photo(chat_id, f)
                 else:
                     with open(arq, 'rb') as vid:
@@ -178,5 +177,5 @@ if __name__ == "__main__":
     t = threading.Thread(target=run_web)
     t.start()
     
-    print("Robô pelão e blindado rodando com Flask e FFmpeg na ativa...")
+    print("Robô com token novo rodando com Flask e FFmpeg na ativa...")
     bot.infinity_polling()
