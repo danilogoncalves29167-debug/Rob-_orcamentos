@@ -1,8 +1,2 @@
-fastapi
-uvicorn
-gunicorn
-pydantic
-google-generativeai
-python-multipart
-
-
+pyTelegramBotAPI
+yt-dlp
