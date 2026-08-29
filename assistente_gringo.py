@@ -1,9 +1,13 @@
 import os
 import threading
+import subprocess
 from flask import Flask
 import telebot
 from telebot import types
 import yt_dlp
+
+# --- FORÇA A ATUALIZAÇÃO DO YT-DLP TODA VEZ QUE O RENDER LIGA ---
+subprocess.run(["pip", "install", "--upgrade", "git+https://github.com/yt-dlp/yt-dlp.git"], stdout=subprocess.DEVNULL)
 
 # --- CONFIGURAÇÃO DO MINI SERVIDOR WEB PARA O RENDER ---
 app = Flask('')
@@ -17,7 +21,7 @@ def run_web():
     app.run(host='0.0.0.0', port=port)
 # -------------------------------------------------------
 
-# TOKEN NOVO ATUALIZADO
+# SEU TOKEN NOVO OFICIAL
 TOKEN = "8657612688:AAHYGknApZ9uISY65F6bEAMi93-QkL3HNUY"
 bot = telebot.TeleBot(TOKEN)
 
@@ -31,6 +35,8 @@ def baixar_midia(url, extrair_audio=False):
     ydl_opts = {
         'outtmpl': 'downloads/%(id)s.%(ext)s',
         'noplaylist': False,
+        # O pulo do gato: finge ser um Chrome de verdade para burlar o block do TikTok/Instagram
+        'impersonate': 'chrome',
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
     }
     
@@ -42,7 +48,7 @@ def baixar_midia(url, extrair_audio=False):
             'preferredquality': '192',
         }]
     else:
-        ydl_opts['format'] = 'best'
+        ydl_opts['format'] = 'b'  # Formato único mais seguro para evitar falha de merge de streams
 
     os.makedirs('downloads', exist_ok=True)
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -67,7 +73,7 @@ def baixar_midia(url, extrair_audio=False):
 def send_welcome(message):
     chat_id = message.chat.id
     if chat_id == ADMIN_ID:
-        bot.send_message(chat_id, "Salve, chefe! O bot tá com token novo e blindado. Manda o link ou `/audio [link]`! 🔥")
+        bot.send_message(chat_id, "Salve, chefe! O robô tá blindado com impersonate anti-block. Manda o link! 🔥")
         return
 
     bot.send_message(
@@ -104,7 +110,7 @@ def baixar_audio_cmd(message):
         if chat_id not in usuarios_vip and chat_id != ADMIN_ID:
             usuarios_teste.add(chat_id)
     except Exception as e:
-        bot.send_message(chat_id, "Deu ruim para puxar esse áudio, mano. O link pode estar quebrado.")
+        bot.send_message(chat_id, "Deu ruim para puxar esse áudio, mano. O link pode estar quebrado ou bloqueado.")
 
 @bot.message_handler(commands=['vip'])
 def dar_vip(message):
@@ -177,5 +183,5 @@ if __name__ == "__main__":
     t = threading.Thread(target=run_web)
     t.start()
     
-    print("Robô com token novo rodando com Flask e FFmpeg na ativa...")
+    print("Robô super blindado com impersonate anti-block rodando na ativa...")
     bot.infinity_polling()
