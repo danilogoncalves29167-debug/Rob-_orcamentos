@@ -1,7 +1,21 @@
 import os
+import threading
+from flask import Flask
 import telebot
 from telebot import types
 import yt_dlp
+
+# --- CONFIGURAÇÃO DO MINI SERVIDOR WEB PARA O RENDER ---
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Robô de download rodando 24h na ativa! 🚀"
+
+def run_web():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+# -------------------------------------------------------
 
 TOKEN = "8940439614:AAHYjqmLiicZ6dclPR6sUOXqu1l8g4r-khE"
 bot = telebot.TeleBot(TOKEN)
@@ -106,5 +120,9 @@ def executar_download_e_enviar(chat_id, url):
         bot.send_message(chat_id, "Erro ao baixar o arquivo, mano.")
 
 if __name__ == "__main__":
-    print("Robô raiz rodando com disfarce anti-bloqueio...")
+    # Sobe o servidor web em uma linha paralela (thread) para o Render não dar chilique
+    t = threading.Thread(target=run_web)
+    t.start()
+    
+    print("Robô raiz rodando com disfarce anti-bloqueio e Flask na nuvem...")
     bot.infinity_polling()
