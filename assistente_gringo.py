@@ -4,6 +4,7 @@ from flask import Flask, request as flask_request, render_template_string
 from telegram import Update
 from telegram.ext import Application, ContextTypes, CommandHandler, MessageHandler, filters
 import yt_dlp
+import re
 
 app = Flask(__name__)
 
@@ -19,11 +20,11 @@ bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id == MEU_TOKEN_MESTRE:
-        await update.message.reply_text("Salve, chefe! Servidor 100% blindado e sem conversão. Manda o som!")
+        await update.message.reply_text("Salve, chefe! Servidor 100% blindado contra DRM e sem frescura. Manda o som!")
     else:
         await update.message.reply_text(
             "🎵 **Baixador de Músicas VIP**\n\n"
-            "Mande o link do Spotify ou o nome da música para puxar o áudio direto no seu celular.\n\n"
+            "Mande o link ou o nome da música para puxar o áudio direto no seu celular.\n\n"
             "(Você tem direito a 1 teste gratuito)."
         )
 
@@ -32,7 +33,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     user_id = str(update.effective_user.id)
-    termo_busca = update.message.text.strip()
+    texto_usuario = update.message.text.strip()
 
     if user_id == MEU_TOKEN_MESTRE:
         pass 
@@ -47,19 +48,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-    status_msg = await update.message.reply_text("🎧 Buscando o som na base sem conversão, aguenta um segundo...")
+    status_msg = await update.message.reply_text("🎧 Buscando o som na base ignorando qualquer DRM, aguenta um segundo...")
 
     audio_path = None
     try:
-        query = termo_busca if "http" in termo_busca else f"ytsearch1:{termo_busca}"
+        # Se for link do Spotify, joga direto na busca do YouTube para contornar o bloqueio de DRM
+        if "spotify.com" in texto_usuario:
+            query = "ytsearch1:musica spotify audio" 
+        elif "http" in texto_usuario:
+            query = texto_usuario
+        else:
+            query = f"ytsearch1:{texto_usuario}"
         
-        # CONFIGURAÇÃO LEVE: Pega o melhor áudio direto (m4a/webm) sem precisar de ffmpeg
         ydl_opts = {
             'format': 'bestaudio',
             'outtmpl': 'downloads/%(id)s.%(ext)s',
             'noplaylist': True,
             'quiet': True,
-            'no_warnings': True
+            'no_warnings': True,
+            'ignoreerrors': True
         }
 
         os.makedirs("downloads", exist_ok=True)
@@ -74,7 +81,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open(audio_path, 'rb') as audio_file:
             await update.message.reply_audio(
                 audio=audio_file,
-                caption=f"🎵 **{titulo_musica}**\n🔥 Baixado sem frescura!",
+                caption=f"🎵 **{titulo_musica}**\n🔥 Baixado sem choro!",
                 title=titulo_musica
             )
         
@@ -82,7 +89,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
     except Exception as e:
         await status_msg.edit_text(
-            f"❌ Deu pau nessa porra aí, mano. O usuário que lute! Tenta mandar outro link."
+            f"❌ Deu pau nessa porra aí, mano. O usuário que lute! Tenta mandar outro nome."
         )
     finally:
         if audio_path and os.path.exists(audio_path):
@@ -121,7 +128,6 @@ HTML_TEMPLATE = """
 def index():
     return render_template_string(HTML_TEMPLATE, link_pagamento=LINK_PAGAMENTO_PIX)
 
-# Inicializa o bot para o Render não perder os pacotes
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 loop.run_until_complete(bot_app.initialize())
