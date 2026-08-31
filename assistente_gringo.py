@@ -1,9 +1,8 @@
 import os
-import torch
-from flask import Flask, request, render_template_string
+import requests
+from flask import Flask, request as flask_request, render_template_string
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
-from diffusers import StableDiffusionPipeline
 
 app = Flask(__name__)
 
@@ -15,18 +14,7 @@ LINK_PAGAMENTO_PIX = "https://mpago.la/33m86YJ"
 # Dicionário simples para controlar quem já usou os testes grátis
 testes_usuarios = {}
 
-# Carrega um modelo leve (Stable Diffusion 1.5) que cabe nos 512MB de RAM do Render
-print("Carregando o motor leve otimizado...")
-model_id = "runwayml/stable-diffusion-v1-5"
-pipe = StableDiffusionPipeline.from_pretrained(
-    model_id, 
-    torch_dtype=torch.float16, 
-    use_safetensors=True
-)
-pipe = pipe.to("cpu")
-pipe.enable_attention_slicing()
-
-# Template HTML básico para a rota web
+# Template HTML básico para a rota web do Render
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -56,7 +44,7 @@ def index():
 
 @app.route(f"/{TELEGRAM_BOT_TOKEN}", methods=["POST"])
 def telegram_webhook():
-    update = Update.de_json(request.get_json(force=True), bot_app.bot)
+    update = Update.de_json(flask_request.get_json(force=True), bot_app.bot)
     return "OK", 200
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -67,36 +55,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id == MEU_TOKEN_MESTRE:
         pass
     else:
-        # Pega quantas vezes o maluco já usou (começa em 0)
         usos_atuais = testes_usuarios.get(user_id, 0)
-        
         if usos_atuais < 2:
-            # Ainda tem direito aos testes grátis (2 chances)
             testes_usuarios[user_id] = usos_atuais + 1
             restantes = 2 - testes_usuarios[user_id]
-            await update.message.reply_text(f"🎁 Teste grátis liberado! (Faltam {restantes + 1} usos gratuitos). Processando...")
+            await update.message.reply_text(f"🎁 Teste grátis liberado! (Restam {restantes + 1} usos). Processando na nuvem...")
         else:
-            # Acabaram os testes, manda direto para o Pix de 65 contos
             await update.message.reply_text(
                 f"⚠️ Seus testes grátis acabaram! Para continuar gerando imagens no talo, assine o acesso VIP:\n\n{LINK_PAGAMENTO_PIX}"
             )
             return
 
-    await update.message.reply_text("⚡ Processando tua imagem no motor otimizado, chefe...")
+    await update.message.reply_text("⚡ Conectando ao motor externo de alta definição, chefe...")
 
-    negative_prompt = "cartoon, illustration, painting, blurry, low quality, distorted, deformed"
-    image = pipe(
-        prompt=prompt_usuario, 
-        negative_prompt=negative_prompt, 
-        num_inference_steps=20,
-        guidance_scale=7.5
-    ).images[0]
-    
-    os.makedirs("static", exist_ok=True)
-    caminho_imagem = "static/gerado.png"
-    image.save(caminho_imagem)
-
-    await update.message.reply_photo(photo=open(caminho_imagem, "rb"), caption="🔥 Imagem gerada com sucesso, cachorro!")
+    try:
+        # Usando uma API pública gratuita e leve via Pollinations AI para gerar a imagem direto por link, sem pesar o servidor
+        prompt_formatado = prompt_usuario.replace(" ", "%20")
+        url_imagem_externa = f"https://image.pollinations.ai/prompt/{prompt_formatado}?width=1024&height=1024&nologo=true"
+        
+        # Baixa a imagem gerada pela nuvem de forma leve
+        resposta_img = requests.get(url_imagem_externa, timeout=30)
+        if resposta_img.status_code == 200:
+            os.makedirs("static", exist_ok=True)
+            caminho_imagem = "static/gerado.png"
+            with open(caminho_imagem, "wb") as f:
+                f.write(resposta_img.content)
+            
+            await update.message.reply_photo(photo=open(caminho_imagem, "rb"), caption="🔥 Imagem gerada com sucesso na nuvem, cachorro!")
+        else:
+            await update.message.reply_text("❌ Deu ruim na API externa, tenta mandar o prompt de novo, mano.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Erro de conexão com o motor: {str(e)}")
 
 bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
