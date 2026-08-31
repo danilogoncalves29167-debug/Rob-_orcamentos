@@ -1,5 +1,4 @@
 import os
-import requests
 import asyncio
 from flask import Flask, request as flask_request, render_template_string
 from telegram import Update
@@ -13,17 +12,39 @@ MEU_TOKEN_MESTRE = "8964511789"
 LINK_PAGAMENTO_PIX = "https://mpago.li/2GsYcDg"
 
 testes_usuarios = {}
+# Memória para rastrear onde o usuário parou (ex: user_id -> última série assistida e parte/temporada atual)
+historico_progresso = {}
+
+# BASE DE DADOS DE FITA COM SEQUÊNCIA (Parte 1, Parte 2, Temporadas)
+# Aqui tu substituis os links pelos arquivos reais (file_id do Telegram ou links diretos de streaming)
+ACERVO_SERIES = {
+    "the walking dead": {
+        "nome": "The Walking Dead",
+        "partes": {
+            "1": "https://t.me/seu_canal_player/temporada_1_episodio_1",
+            "2": "https://t.me/seu_canal_player/temporada_1_episodio_2",
+            "3": "https://t.me/seu_canal_player/temporada_1_episodio_3"
+        }
+    },
+    "homem aranha": {
+        "nome": "Homem-Aranha (Saga Completa)",
+        "partes": {
+            "1": "https://t.me/seu_canal_player/homem_aranha_1",
+            "2": "https://t.me/seu_canal_player/homem_aranha_2_de_volta_ao_lar"
+        }
+    }
+}
 
 bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id == MEU_TOKEN_MESTRE:
-        await update.message.reply_text("Salve, chefe! Modo automático total ativado. Manda o nome do filme ou série!")
+        await update.message.reply_text("Salve, chefe! Sistema de episódios sequenciais pronto.")
     else:
         await update.message.reply_text(
             "🍿 **Cinema no Bolso**\n\n"
-            "Digite o nome de qualquer filme ou série para o bot buscar o link de streaming automaticamente na rede.\n\n"
+            "Manda o nome da série ou filme que tu quer começar a assistir. Quando acabar, é só pedir a parte dois que eu mando na hora!\n\n"
             "(Você tem direito a 1 teste gratuito)."
         )
 
@@ -32,36 +53,55 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     user_id = str(update.effective_user.id)
-    termo_busca = update.message.text.strip()
+    texto_usuario = update.message.text.strip().lower()
 
     if user_id == MEU_TOKEN_MESTRE:
-        await update.message.reply_text("⚡ Buscando no modo patrão (ilimitado e automático)...")
+        await update.message.reply_text("⚡ Modo patrão ativado...")
     else:
         usos_atuais = testes_usuarios.get(user_id, 0)
         if usos_atuais < 1:
             testes_usuarios[user_id] = usos_atuais + 1
-            await update.message.reply_text("Teste grátis liberado! Buscando na rede...")
+            await update.message.reply_text("Teste grátis liberado! Carregando a fita...")
         else:
             await update.message.reply_text(
-                f"Seu teste gratuito acabou. Para continuar assistindo a tudo sem anúncios por apenas **R$ 25**, efetue a assinatura VIP:\n\n{LINK_PAGAMENTO_PIX}"
+                f"Seu teste gratuito acabou. Para continuar maratonando tudo sem limite por apenas **R$ 25**, efetue a assinatura VIP:\n\n{LINK_PAGAMENTO_PIX}"
             )
             return
 
-    await update.message.reply_text("🔍 Varrendo a web e gerando o link de streaming automático...")
+    # Identifica se o usuário está pedindo a continuação (ex: "parte 2", "proximo", "temporada 2")
+    if "parte 2" in texto_usuario or "2" in texto_usuario or "continuar" in texto_usuario:
+        ultimo_pedido = historico_progresso.get(user_id)
+        if ultimo_pedido and ultimo_pedido in ACERVO_SERIES:
+            serie_info = ACERVO_SERIES[ultimo_pedido]
+            link_parte_2 = serie_info["partes"].get("2", "Link da parte 2 em breve no canal oficial!")
+            await update.message.reply_text(
+                f"🎬 **Mandando a continuação: {serie_info['nome']} (Parte 2)**\n\n"
+                f"🔗 **Link Direto:**\n{link_parte_2}\n\n"
+                "🔥 Bom filme, cachorro!"
+            )
+            return
 
-    try:
-        termo_formatado = termo_busca.replace(" ", "+")
-        link_direto = f"https://www.google.com/search?q={termo_formatado}+assistir+online+gratis"
+    # Busca normal pelo nome da obra
+    obra_encontrada = None
+    for chave in ACERVO_SERIES:
+        if chave in texto_usuario:
+            obra_encontrada = chave
+            break
+
+    if obra_encontrada:
+        historico_progresso[user_id] = obra_encontrada
+        serie_info = ACERVO_SERIES[obra_encontrada]
+        link_parte_1 = serie_info["partes"].get("1", "Link indisponível")
         
         await update.message.reply_text(
-            f"🎬 **Achei a fita automaticamente!**\n\n"
-            f"📺 **Busca:** {termo_busca}\n\n"
-            f"🔗 **Link de Acesso Direto:**\n{link_direto}\n\n"
-            "🔥 Aproveite sem travar!"
+            f"🎬 **Achei a fita: {serie_info['nome']}**\n\n"
+            f"📺 **Parte 1 / Início liberado:**\n{link_parte_1}\n\n"
+            "💡 *Terminou de ver? É só mandar 'quero a parte dois' que eu libero a sequência na hora!*"
         )
-            
-    except Exception as e:
-        await update.message.reply_text(f"Erro ao processar a busca automática: {str(e)}")
+    else:
+        await update.message.reply_text(
+            f"Eita, essa fita exata ainda não tá na agulha da base de teste, mano. Mas no acervo VIP completo tem tudo!"
+        )
 
 bot_app.add_handler(CommandHandler("start", start_command))
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
