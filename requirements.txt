@@ -1,11 +1,4 @@
 flask
-torch
-torchvision
-diffusers
-transformers
-accelerate
-safetensors
-pillow
 requests
 gunicorn
 python-telegram-bot
