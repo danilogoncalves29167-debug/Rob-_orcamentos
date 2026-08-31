@@ -3,7 +3,7 @@ import requests
 import asyncio
 from flask import Flask, request as flask_request, render_template_string
 from telegram import Update
-from telegram.ext import Application, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, ContextTypes, CommandHandler, MessageHandler, filters
 
 app = Flask(__name__)
 
@@ -14,9 +14,17 @@ LINK_PAGAMENTO_PIX = "https://mpago.la/33m86YJ"
 
 testes_usuarios = {}
 
-# Inicializa o bot do Telegram de forma global
 bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
+# Função para responder quando mandar /start
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    await update.message.reply_text(
+        "🤖 E aí, cachorro! O gerador VIP tá operante.\n\n"
+        "Manda aí o que tu quer desenhar que eu crio a imagem na hora! (Tu tens direito a 2 testes grátis)."
+    )
+
+# Função para processar os prompts de imagem
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
@@ -31,7 +39,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if usos_atuais < 2:
             testes_usuarios[user_id] = usos_atuais + 1
             restantes = 2 - testes_usuarios[user_id]
-            await update.message.reply_text(f"🎁 Teste grátis liberado! (Restam {restantes + 1} usos). Processando na nuvem...")
+            await update.message.reply_text(f"🎁 Teste grátis liberado! (Restam {restantes} usos). Processando na nuvem...")
         else:
             await update.message.reply_text(
                 f"⚠️ Seus testes grátis acabaram! Para continuar gerando imagens no talo, assine o acesso VIP:\n\n{LINK_PAGAMENTO_PIX}"
@@ -57,6 +65,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Erro de conexão com o motor: {str(e)}")
 
+# Adiciona os manipuladores de comando e mensagem
+bot_app.add_handler(CommandHandler("start", start_command))
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
 HTML_TEMPLATE = """
@@ -91,7 +101,6 @@ def telegram_webhook():
     json_data = flask_request.get_json(force=True)
     update = Update.de_json(json_data, bot_app.bot)
     
-    # Roda a função de forma síncrona dentro do contexto do loop do bot
     async def processar():
         await bot_app.initialize()
         await bot_app.process_update(update)
@@ -102,3 +111,4 @@ def telegram_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+    
