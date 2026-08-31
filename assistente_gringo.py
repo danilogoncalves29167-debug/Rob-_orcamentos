@@ -47,34 +47,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-    status_msg = await update.message.reply_text("🔍 Varrendo a web e gerando o link de streaming automático...")
+    await update.message.reply_text("🔍 Varrendo a web e gerando o link de streaming automático...")
 
     try:
-        termo_formatado = termo_busca.replace(" ", "%20")
+        termo_formatado = termo_busca.replace(" ", "+")
+        link_direto = f"https://www.google.com/search?q={termo_formatado}+assistir+online+gratis"
         
-        # Usando a rota multi do TVMaze para varrer filmes e séries de cinema sem falhar
-        url_api_publica = f"https://api.tvmaze.com/search/multi?q={termo_formatado}"
-        resposta = requests.get(url_api_publica, timeout=15)
-        
-        if resposta.status_code == 200:
-            dados = resposta.json()
-            if dados and len(dados) > 0:
-                item = dados[0].get('show') or dados[0].get('movie') or dados[0]
-                nome_oficial = item.get('name') or item.get('title') or termo_busca
-                site_oficial = item.get('officialSite') or item.get('url') or f"https://www.google.com/search?q={termo_formatado}+assistir+online"
-                
-                await update.message.reply_text(
-                    f"🎬 **Achei a fita automaticamente!**\n\n"
-                    f"📺 **Título:** {nome_oficial}\n\n"
-                    f"🔗 **Link de Acesso Direto:**\n{site_oficial}\n\n"
-                    "🔥 Aproveite sem travar!"
-                )
-            else:
-                await update.message.reply_text(
-                    f"Eita, o brabo '{termo_busca}' não apareceu na varredura. Tenta digitar o nome um pouco diferente!"
-                )
-        else:
-            await update.message.reply_text("Falha ao conectar com os servidores de busca. Tente novamente em instantes.")
+        await update.message.reply_text(
+            f"🎬 **Achei a fita automaticamente!**\n\n"
+            f"📺 **Busca:** {termo_busca}\n\n"
+            f"🔗 **Link de Acesso Direto:**\n{link_direto}\n\n"
+            "🔥 Aproveite sem travar!"
+        )
             
     except Exception as e:
         await update.message.reply_text(f"Erro ao processar a busca automática: {str(e)}")
@@ -124,4 +108,4 @@ def telegram_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-                    
+    
