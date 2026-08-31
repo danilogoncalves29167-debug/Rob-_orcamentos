@@ -19,7 +19,7 @@ bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id == MEU_TOKEN_MESTRE:
-        await update.message.reply_text("Salve, chefe! Acesso total e ilimitado liberado para o dono da porra toda. Manda o prompt aí!")
+        await update.message.reply_text("Salve, chefe! Acesso total e ilimitado liberado. Manda o prompt que o motor de alta definição está pronto!")
     else:
         await update.message.reply_text(
             "Olá! Seja bem-vindo ao gerador de imagens por Inteligência Artificial.\n\n"
@@ -34,7 +34,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prompt_usuario = update.message.text
 
     if user_id == MEU_TOKEN_MESTRE:
-        await update.message.reply_text("⚡ Gerando imagem no modo patrão (ilimitado)...")
+        await update.message.reply_text("⚡ Gerando imagem no modo patrão (ilimitado e turbo)...")
     else:
         usos_atuais = testes_usuarios.get(user_id, 0)
         if usos_atuais < 2:
@@ -47,14 +47,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-    # Mensagem de espera para o Telegram não dar timeout
-    status_msg = await update.message.reply_text("🎨 Criando a arte na alta, aguenta um segundo...")
+    status_msg = await update.message.reply_text("🎨 Aplicando filtros de alta definição e renderizando...")
 
     try:
-        prompt_formatado = prompt_usuario.replace(" ", "%20")
+        # Turbinando o prompt automaticamente com termos de altíssima qualidade
+        prompt_turbinado = f"{prompt_usuario}, photorealistic, highly detailed, 8k resolution, professional studio lighting, hyper-realistic, unreal engine 5 render"
+        prompt_formatado = prompt_turbinado.replace(" ", "%20")
+        
         url_imagem_externa = f"https://image.pollinations.ai/prompt/{prompt_formatado}?width=1024&height=1024&nologo=true"
         
-        # Timeout maior para dar tempo do motor entregar a imagem
         resposta_img = requests.get(url_imagem_externa, timeout=60)
         if resposta_img.status_code == 200:
             os.makedirs("static", exist_ok=True)
@@ -62,7 +63,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             with open(caminho_imagem, "wb") as f:
                 f.write(resposta_img.content)
             
-            await update.message.reply_photo(photo=open(caminho_imagem, "rb"), caption="🔥 Imagem gerada com sucesso!")
+            await update.message.reply_photo(photo=open(caminho_imagem, "rb"), caption="🔥 Imagem gerada com padrão profissional!")
         else:
             await update.message.reply_text("Ocorreu uma falha na geração da imagem. Tente enviar o prompt novamente.")
     except Exception as e:
@@ -113,4 +114,4 @@ def telegram_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-            
+    
