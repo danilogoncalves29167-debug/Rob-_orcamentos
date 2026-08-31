@@ -1,57 +1,29 @@
 import os
 import requests
+import asyncio
 from flask import Flask, request as flask_request, render_template_string
 from telegram import Update
-from telegram.ext import Application, ApplicationBuilder, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, ContextTypes, MessageHandler, filters
 
 app = Flask(__name__)
 
-# CONFIGURAÇÕES OFICIAIS: API do Bot, ID Mestre e Link de Pagamento Integrados
+# CONFIGURAÇÕES OFICIAIS
 TELEGRAM_BOT_TOKEN = "8940699833:AAFRxnt0Ew__V0g223oNHRaftvO246GPeyQ"
 MEU_TOKEN_MESTRE = "8964511789"
 LINK_PAGAMENTO_PIX = "https://mpago.la/33m86YJ"
 
-# Dicionário simples para controlar quem já usou os testes grátis
 testes_usuarios = {}
 
-# Template HTML básico para a rota web do Render
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>Gerador VIP</title>
-    <style>
-        body { background-color: #0b0b0b; color: #fff; font-family: sans-serif; text-align: center; padding: 50px; }
-        .container { background: #161616; padding: 40px; border-radius: 16px; display: inline-block; border: 1px solid #222; }
-        h1 { color: #00ff66; }
-        a { color: #ff4d4d; font-weight: bold; text-decoration: none; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>SISTEMA OPERANTE</h1>
-        <p>O bot do Telegram está ativo. Para liberar o acesso completo, assine:</p>
-        <a href="{{ link_pagamento }}" target="_blank">Assinar Acesso VIP por R$ 65</a>
-    </div>
-</body>
-</html>
-"""
-
-@app.route("/", methods=["GET"])
-def index():
-    return render_template_string(HTML_TEMPLATE, link_pagamento=LINK_PAGAMENTO_PIX)
-
-@app.route(f"/{TELEGRAM_BOT_TOKEN}", methods=["POST"])
-def telegram_webhook():
-    update = Update.de_json(flask_request.get_json(force=True), bot_app.bot)
-    return "OK", 200
+# Inicializa o bot do Telegram de forma global
+bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
+        
     user_id = str(update.effective_user.id)
     prompt_usuario = update.message.text
 
-    # Se for o teu ID mestre, passa direto sem limite
     if user_id == MEU_TOKEN_MESTRE:
         pass
     else:
@@ -85,8 +57,47 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Erro de conexão com o motor: {str(e)}")
 
-bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerador VIP</title>
+    <style>
+        body { background-color: #0b0b0b; color: #fff; font-family: sans-serif; text-align: center; padding: 50px; }
+        .container { background: #161616; padding: 40px; border-radius: 16px; display: inline-block; border: 1px solid #222; }
+        h1 { color: #00ff66; }
+        a { color: #ff4d4d; font-weight: bold; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SISTEMA OPERANTE</h1>
+        <p>O bot do Telegram está ativo. Para liberar o acesso completo, assine:</p>
+        <a href="{{ link_pagamento }}" target="_blank">Assinar Acesso VIP por R$ 65</a>
+    </div>
+</body>
+</html>
+"""
+
+@app.route("/", methods=["GET"])
+def index():
+    return render_template_string(HTML_TEMPLATE, link_pagamento=LINK_PAGAMENTO_PIX)
+
+@app.route(f"/{TELEGRAM_BOT_TOKEN}", methods=["POST"])
+def telegram_webhook():
+    json_data = flask_request.get_json(force=True)
+    update = Update.de_json(json_data, bot_app.bot)
+    
+    # Roda a função de forma síncrona dentro do contexto do loop do bot
+    async def processar():
+        await bot_app.initialize()
+        await bot_app.process_update(update)
+        
+    asyncio.run(processar())
+    return "OK", 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
