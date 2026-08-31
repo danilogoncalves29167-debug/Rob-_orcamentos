@@ -8,3 +8,4 @@ safetensors
 pillow
 requests
 gunicorn
+python-telegram-bot
