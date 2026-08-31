@@ -130,20 +130,23 @@ HTML_TEMPLATE = """
 def index():
     return render_template_string(HTML_TEMPLATE, link_pagamento=LINK_PAGAMENTO_PIX)
 
+# Inicializa o bot para o Render não perder os pacotes
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+loop.run_until_complete(bot_app.initialize())
+
 @app.route(f"/{TELEGRAM_BOT_TOKEN}", methods=["POST"])
 def telegram_webhook():
     json_data = flask_request.get_json(force=True)
     update = Update.de_json(json_data, bot_app.bot)
     
-    # Tratamento blindado para o event loop não fechar na cara do Flask
+    async def processar():
+        await bot_app.process_update(update)
+
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            asyncio.run_coroutine_threadsafe(bot_app.process_update(update), loop)
-        else:
-            loop.run_until_complete(bot_app.process_update(update))
+        loop.run_until_complete(processar())
     except Exception:
-        asyncio.run(bot_app.process_update(update))
+        asyncio.run(processar())
         
     return "OK", 200
 
