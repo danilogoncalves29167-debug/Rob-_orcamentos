@@ -1,187 +1,97 @@
 import os
-import threading
-import subprocess
-from flask import Flask
-import telebot
-from telebot import types
-import yt_dlp
+import torch
+from flask import Flask, request, redirect, render_template_string
+from telegram import Update
+from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
+from diffusers import StableDiffusionXLPipeline
 
-# --- FORÇA A ATUALIZAÇÃO DO YT-DLP TODA VEZ QUE O RENDER LIGA ---
-subprocess.run(["pip", "install", "--upgrade", "git+https://github.com/yt-dlp/yt-dlp.git"], stdout=subprocess.DEVNULL)
+app = Flask(__name__)
 
-# --- CONFIGURAÇÃO DO MINI SERVIDOR WEB PARA O RENDER ---
-app = Flask('')
+# CONFIGURAÇÕESOFICIAIS: API do Bot, ID Mestre e Link de Pagamento Integrados
+TELEGRAM_BOT_TOKEN = "8940699833:AAFRxnt0Ew__V0g223oNHRaftvO246GPeyQ"
+MEU_TOKEN_MESTRE = "8964511789"
+LINK_PAGAMENTO_PIX = "https://mpago.la/33m86YJ"
 
-@app.route('/')
-def home():
-    return "Robô de download rodando 24h na ativa! 🚀"
+# Carrega o modelo SDXL otimizado para máxima nitidez e realismo
+print("Carregando o motor de imagens em alta definição...")
+model_id = "stabilityai/stable-diffusion-xl-base-1.0"
+pipe = StableDiffusionXLPipeline.from_pretrained(
+    model_id, 
+    torch_dtype=torch.float16, 
+    use_safetensors=True
+)
+pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
 
-def run_web():
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
-# -------------------------------------------------------
+# Template HTML caso alguém acesse a rota web no Render
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerador 4K VIP</title>
+    <style>
+        body { background-color: #0b0b0b; color: #fff; font-family: sans-serif; text-align: center; padding: 50px; }
+        .container { background: #161616; padding: 40px; border-radius: 16px; display: inline-block; border: 1px solid #222; }
+        h1 { color: #00ff66; }
+        a { color: #ff4d4d; font-weight: bold; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SISTEMA OPERANTE</h1>
+        <p>O bot do Telegram está ativo. Para gerar imagens, acesse pelo Telegram ou assine:</p>
+        <a href="{{ link_pagamento }}" target="_blank">Assinar Acesso VIP por R$ 65</a>
+    </div>
+</body>
+</html>
+"""
 
-# SEU TOKEN NOVO OFICIAL
-TOKEN = "8657612688:AAHYGknApZ9uISY65F6bEAMi93-QkL3HNUY"
-bot = telebot.TeleBot(TOKEN)
+@app.route("/", methods=["GET"])
+def index():
+    return render_template_string(HTML_TEMPLATE, link_pagamento=LINK_PAGAMENTO_PIX)
 
-# SEU ID OFICIAL DE PATRÃO CONFIGURADO
-ADMIN_ID = 8964511789
+# Rota para o Webhook do Telegram receber as mensagens dos usuários
+@app.route(f"/{TELEGRAM_BOT_TOKEN}", methods=["POST"])
+def telegram_webhook():
+    update = Update.de_json(request.get_json(force=True), bot_app.bot)
+    # Aqui processaria a atualização do Telegram de forma assíncrona ou direta
+    return "OK", 200
 
-usuarios_teste = set()
-usuarios_vip = set()
+# Função que processa os prompts enviados no Telegram
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    prompt_usuario = update.message.text
 
-def baixar_midia(url, extrair_audio=False):
-    ydl_opts = {
-        'outtmpl': 'downloads/%(id)s.%(ext)s',
-        'noplaylist': False,
-        # O pulo do gato: finge ser um Chrome de verdade para burlar o block do TikTok/Instagram
-        'impersonate': 'chrome',
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-    }
-    
-    if extrair_audio:
-        ydl_opts['format'] = 'bestaudio/best'
-        ydl_opts['postprocessors'] = [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }]
-    else:
-        ydl_opts['format'] = 'b'  # Formato único mais seguro para evitar falha de merge de streams
-
-    os.makedirs('downloads', exist_ok=True)
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        
-        if 'entries' in info:
-            arquivos = []
-            for entry in info['entries']:
-                if entry:
-                    filename = ydl.prepare_filename(entry)
-                    if extrair_audio:
-                        filename = os.path.splitext(filename)[0] + '.mp3'
-                    arquivos.append(filename)
-            return arquivos
-        else:
-            filename = ydl.prepare_filename(info)
-            if extrair_audio:
-                filename = os.path.splitext(filename)[0] + '.mp3'
-            return [filename]
-
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    chat_id = message.chat.id
-    if chat_id == ADMIN_ID:
-        bot.send_message(chat_id, "Salve, chefe! O robô tá blindado com impersonate anti-block. Manda o link! 🔥")
-        return
-
-    bot.send_message(
-        chat_id,
-        "Salve, mano! Mande o link de qualquer vídeo do TikTok, Instagram ou YouTube para baixar limpinho.\n\n"
-        "💡 **Quer extrair só o áudio?** Mande o comando `/audio` seguido do link.\n\n"
-        "Você tem **1 teste grátis** agora. Cola pra ver a mágica acontecer! Kkkk"
-    )
-
-@bot.message_handler(commands=['audio'])
-def baixar_audio_cmd(message):
-    chat_id = message.chat.id
-    partes = message.text.split(maxsplit=1)
-    
-    if len(partes) < 2:
-        bot.send_message(chat_id, "E o link, viado? Digita assim: `/audio SEU_LINK_AQUI`")
-        return
-        
-    url = partes[1].strip()
-    
-    if chat_id != ADMIN_ID and chat_id not in usuarios_vip and chat_id in usuarios_teste:
-        bot.send_message(chat_id, "Seu teste grátis já era, mano! Assina o VIP para continuar puxando áudio.")
-        return
-
-    bot.send_message(chat_id, "Buscando e convertendo o áudio na marra, aguenta aí...")
-    
-    try:
-        arquivos = baixar_midia(url, extrair_audio=True)
-        for arq in arquivos:
-            if os.path.exists(arq):
-                with open(arq, 'rb') as aud:
-                    bot.send_audio(chat_id, aud, caption="Aí o teu MP3 estralando, mano! 🎵")
-                os.remove(arq)
-        if chat_id not in usuarios_vip and chat_id != ADMIN_ID:
-            usuarios_teste.add(chat_id)
-    except Exception as e:
-        bot.send_message(chat_id, "Deu ruim para puxar esse áudio, mano. O link pode estar quebrado ou bloqueado.")
-
-@bot.message_handler(commands=['vip'])
-def dar_vip(message):
-    chat_id = message.chat.id
-    
-    if chat_id != ADMIN_ID:
-        bot.send_message(chat_id, "Sai fora, mano! Tu não é o dono da porra toda. Kkkk")
-        return
-        
-    try:
-        partes = message.text.split()
-        alvo_id = int(partes[1])
-        usuarios_vip.add(alvo_id)
-        if alvo_id in usuarios_teste:
-            usuarios_teste.remove(alvo_id)
-        bot.send_message(chat_id, f"Mano, o usuário `{alvo_id}` foi promovido a **VIP MASTER** com sucesso! 🚀")
-        bot.send_message(alvo_id, "Opa, chefe! Seu pagamento foi confirmado. Seu acesso VIP tá liberado geral, pode mandar os links sem limite! 🔥")
-    except Exception as e:
-        bot.send_message(chat_id, "Uso incorreto, mano. Digita assim: `/vip ID_DO_USUARIO`")
-
-@bot.message_handler(func=lambda message: True)
-def processar_link(message):
-    chat_id = message.chat.id
-    url = message.text.strip()
-
-    if chat_id == ADMIN_ID:
-        bot.send_message(chat_id, "Baixando mídia para o patrão...")
-        executar_download_e_enviar(chat_id, url)
-        return
-
-    if chat_id in usuarios_vip:
-        bot.send_message(chat_id, "Baixando tua parada, VIP...")
-        executar_download_e_enviar(chat_id, url)
-        return
-
-    if chat_id in usuarios_teste:
-        markup = types.InlineKeyboardMarkup()
-        btn_pagar = types.InlineKeyboardButton("Pagar R$ 65 e Liberar Geral 🚀", url="https://mpago.la/1psrqrL")
-        markup.add(btn_pagar)
-        
-        bot.send_message(
-            chat_id,
-            "Opa, irmão! Seu teste grátis já era. Kkkk!\n\n"
-            "Para continuar baixando sem limite, o investimento é de só **R$ 65 por mês**. Clica no botão abaixo:",
-            reply_markup=markup
+    # Trava de segurança: Se for o teu ID mestre, libera geral. Senão, manda o link de pagamento.
+    if user_id != MEU_TOKEN_MESTRE:
+        await update.message.reply_text(
+            f"⚠️ Acesso restrito! Para liberar o gerador 4K completo, efetue o pagamento da assinatura:\n\n{LINK_PAGAMENTO_PIX}"
         )
         return
 
-    usuarios_teste.add(chat_id)
-    bot.send_message(chat_id, "Agh, peguei o link! Processando a marola sem marca d'água...")
-    
-    executar_download_e_enviar(chat_id, url)
+    await update.message.reply_text("⚡ Processando tua obra-prima em alta definição, chefe...")
 
-def executar_download_e_enviar(chat_id, url):
-    try:
-        arquivos = baixar_midia(url, extrair_audio=False)
-        for arq in arquivos:
-            if os.path.exists(arq):
-                if arq.endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                    with open(arq, 'rb') as f:
-                        bot.send_photo(chat_id, f)
-                else:
-                    with open(arq, 'rb') as vid:
-                        bot.send_video(chat_id, vid, caption="Aí o seu vídeo limpinho, mano! 🚀")
-                os.remove(arq)
-    except Exception as e:
-        bot.send_message(chat_id, "Deu ruim nesse link, mano. O servidor bloqueou ou a mídia não existe.")
+    # Parâmetros para garantir realismo bruto
+    negative_prompt = "cartoon, illustration, painting, blurry, low quality, distorted, plastic skin, artificial, deformed"
+    image = pipe(
+        prompt=prompt_usuario, 
+        negative_prompt=negative_prompt, 
+        num_inference_steps=35,
+        guidance_scale=7.5
+    ).images[0]
+    
+    os.makedirs("static", exist_ok=True)
+    caminho_imagem = "static/gerado.png"
+    image.save(caminho_imagem)
+
+    # Devolve a imagem gerada direto no chat do Telegram
+    await update.message.reply_photo(photo=open(caminho_imagem, "rb"), caption="🔥 Imagem 4K gerada com sucesso, cachorro!")
+
+# Inicializa o construtor do bot do Telegram
+from telegram.ext import Application
+bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
 if __name__ == "__main__":
-    t = threading.Thread(target=run_web)
-    t.start()
-    
-    print("Robô super blindado com impersonate anti-block rodando na ativa...")
-    bot.infinity_polling()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
