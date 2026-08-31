@@ -19,11 +19,11 @@ bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id == MEU_TOKEN_MESTRE:
-        await update.message.reply_text("Salve, chefe! Servidor 100% blindado e operacional. Manda o som!")
+        await update.message.reply_text("Salve, chefe! Servidor 100% blindado e sem conversão. Manda o som!")
     else:
         await update.message.reply_text(
             "🎵 **Baixador de Músicas VIP**\n\n"
-            "Mande o nome da música ou o link para baixar o áudio direto no seu celular.\n\n"
+            "Mande o link do Spotify ou o nome da música para puxar o áudio direto no seu celular.\n\n"
             "(Você tem direito a 1 teste gratuito)."
         )
 
@@ -40,21 +40,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         usos_atuais = testes_usuarios.get(user_id, 0)
         if usos_atuais < 1:
             testes_usuarios[user_id] = usos_atuais + 1
-            await update.message.reply_text("Teste grátis liberado! Baixando o arquivo...")
+            await update.message.reply_text("Teste grátis liberado! Puxando o arquivo...")
         else:
             await update.message.reply_text(
                 f"Seu teste gratuito acabou. Para continuar baixando músicas sem limite por apenas **R$ 25**, assine o acesso VIP:\n\n{LINK_PAGAMENTO_PIX}"
             )
             return
 
-    status_msg = await update.message.reply_text("🎧 Buscando o som na base, aguenta um segundo...")
+    status_msg = await update.message.reply_text("🎧 Buscando o som na base sem conversão, aguenta um segundo...")
 
     audio_path = None
     try:
         query = termo_busca if "http" in termo_busca else f"ytsearch1:{termo_busca}"
         
+        # CONFIGURAÇÃO LEVE: Pega o melhor áudio direto (m4a/webm) sem precisar de ffmpeg
         ydl_opts = {
-            'format': 'bestaudio/best',
+            'format': 'bestaudio',
             'outtmpl': 'downloads/%(id)s.%(ext)s',
             'noplaylist': True,
             'quiet': True,
@@ -67,23 +68,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             info = ydl.extract_info(query, download=True)
             if 'entries' in info:
                 info = info['entries'][0]
-            filename = ydl.prepare_filename(info)
-            
-            base, ext = os.path.splitext(filename)
-            audio_path = base + ".mp3"
-            
-            if os.path.exists(filename):
-                if ext != ".mp3":
-                    os.rename(filename, audio_path)
-                else:
-                    audio_path = filename
-            
+            audio_path = ydl.prepare_filename(info)
             titulo_musica = info.get('title', 'Áudio Baixado')
 
         with open(audio_path, 'rb') as audio_file:
             await update.message.reply_audio(
                 audio=audio_file,
-                caption=f"🎵 **{titulo_musica}**\n🔥 Baixado com sucesso!",
+                caption=f"🎵 **{titulo_musica}**\n🔥 Baixado sem frescura!",
                 title=titulo_musica
             )
         
@@ -91,7 +82,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
     except Exception as e:
         await status_msg.edit_text(
-            f"❌ Deu pau ao processar essa faixa, mano. Tenta mandar o nome limpo da música ou outro link!"
+            f"❌ Deu pau nessa porra aí, mano. O usuário que lute! Tenta mandar outro link."
         )
     finally:
         if audio_path and os.path.exists(audio_path):
