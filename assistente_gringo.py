@@ -51,7 +51,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     audio_path = None
     try:
-        # Define se é link direto ou busca por texto
         query = termo_busca if "http" in termo_busca else f"ytsearch1:{termo_busca}"
         
         ydl_opts = {
@@ -70,7 +69,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 info = info['entries'][0]
             filename = ydl.prepare_filename(info)
             
-            # Ajusta a extensão para garantir compatibilidade com o player do Telegram
             base, ext = os.path.splitext(filename)
             audio_path = base + ".mp3"
             
@@ -82,7 +80,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             titulo_musica = info.get('title', 'Áudio Baixado')
 
-        # Envia o arquivo de áudio direto no chat para o usuário escutar
         with open(audio_path, 'rb') as audio_file:
             await update.message.reply_audio(
                 audio=audio_file,
@@ -138,11 +135,16 @@ def telegram_webhook():
     json_data = flask_request.get_json(force=True)
     update = Update.de_json(json_data, bot_app.bot)
     
-    async def processar():
-        await bot_app.initialize()
-        await bot_app.process_update(update)
+    # Tratamento blindado para o event loop não fechar na cara do Flask
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.run_coroutine_threadsafe(bot_app.process_update(update), loop)
+        else:
+            loop.run_until_complete(bot_app.process_update(update))
+    except Exception:
+        asyncio.run(bot_app.process_update(update))
         
-    asyncio.run(processar())
     return "OK", 200
 
 if __name__ == "__main__":
