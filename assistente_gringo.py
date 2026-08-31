@@ -2,7 +2,7 @@ import os
 import requests
 from flask import Flask, request as flask_request, render_template_string
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, ApplicationBuilder, ContextTypes, MessageHandler, filters
 
 app = Flask(__name__)
 
@@ -69,11 +69,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⚡ Conectando ao motor externo de alta definição, chefe...")
 
     try:
-        # Usando uma API pública gratuita e leve via Pollinations AI para gerar a imagem direto por link, sem pesar o servidor
         prompt_formatado = prompt_usuario.replace(" ", "%20")
         url_imagem_externa = f"https://image.pollinations.ai/prompt/{prompt_formatado}?width=1024&height=1024&nologo=true"
         
-        # Baixa a imagem gerada pela nuvem de forma leve
         resposta_img = requests.get(url_imagem_externa, timeout=30)
         if resposta_img.status_code == 200:
             os.makedirs("static", exist_ok=True)
