@@ -7,8 +7,8 @@ from telegram.ext import Application, ContextTypes, CommandHandler, MessageHandl
 
 app = Flask(__name__)
 
-# CONFIGURAÇÕES OFICIAIS
-TELEGRAM_BOT_TOKEN = "8940699833:AAFRxnt0Ew__V0g223oNHRaftvO246GPeyQ"
+# NOVO TOKEN OFICIAL DO TELEGRAM, ID MESTRE E LINK PIX
+TELEGRAM_BOT_TOKEN = "8905719627:AAEkdRBkweO-62u_td0jyKfTZYaxGQNZNI0"
 MEU_TOKEN_MESTRE = "8964511789"
 LINK_PAGAMENTO_PIX = "https://mpago.la/33m86YJ"
 
@@ -16,15 +16,18 @@ testes_usuarios = {}
 
 bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
-# Função para responder quando mandar /start
+# Comando /start
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
-    await update.message.reply_text(
-        "🤖 E aí, cachorro! O gerador VIP tá operante.\n\n"
-        "Manda aí o que tu quer desenhar que eu crio a imagem na hora! (Tu tens direito a 2 testes grátis)."
-    )
+    if user_id == MEU_TOKEN_MESTRE:
+        await update.message.reply_text("Salve, chefe! Acesso total e ilimitado liberado para o dono da porra toda. Manda o prompt aí!")
+    else:
+        await update.message.reply_text(
+            "Olá! Seja bem-vindo ao gerador de imagens por Inteligência Artificial.\n\n"
+            "Envie o texto descrevendo a imagem que você deseja criar (você tem direito a 2 testes gratuitos)."
+        )
 
-# Função para processar os prompts de imagem
+# Função para processar prompts de imagem
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
@@ -32,21 +35,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     prompt_usuario = update.message.text
 
+    # Se for o dono (ID mestre), passa direto sem gastar nada
     if user_id == MEU_TOKEN_MESTRE:
-        pass
+        await update.message.reply_text("⚡ Gerando imagem no modo patrão (ilimitado)...")
     else:
         usos_atuais = testes_usuarios.get(user_id, 0)
         if usos_atuais < 2:
             testes_usuarios[user_id] = usos_atuais + 1
             restantes = 2 - testes_usuarios[user_id]
-            await update.message.reply_text(f"🎁 Teste grátis liberado! (Restam {restantes} usos). Processando na nuvem...")
+            await update.message.reply_text(f"Teste grátis liberado! (Restam {restantes} usos). Processando na nuvem...")
         else:
             await update.message.reply_text(
-                f"⚠️ Seus testes grátis acabaram! Para continuar gerando imagens no talo, assine o acesso VIP:\n\n{LINK_PAGAMENTO_PIX}"
+                f"Seus testes gratuitos acabaram. Para continuar gerando imagens, efetue a assinatura:\n\n{LINK_PAGAMENTO_PIX}"
             )
             return
-
-    await update.message.reply_text("⚡ Conectando ao motor externo de alta definição, chefe...")
 
     try:
         prompt_formatado = prompt_usuario.replace(" ", "%20")
@@ -59,13 +61,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             with open(caminho_imagem, "wb") as f:
                 f.write(resposta_img.content)
             
-            await update.message.reply_photo(photo=open(caminho_imagem, "rb"), caption="🔥 Imagem gerada com sucesso na nuvem, cachorro!")
+            await update.message.reply_photo(photo=open(caminho_imagem, "rb"), caption="🔥 Imagem gerada com sucesso!")
         else:
-            await update.message.reply_text("❌ Deu ruim na API externa, tenta mandar o prompt de novo, mano.")
+            await update.message.reply_text("Ocorreu uma falha na geração da imagem. Tente enviar o prompt novamente.")
     except Exception as e:
-        await update.message.reply_text(f"❌ Erro de conexão com o motor: {str(e)}")
+        await update.message.reply_text(f"Erro de conexão com o motor: {str(e)}")
 
-# Adiciona os manipuladores de comando e mensagem
 bot_app.add_handler(CommandHandler("start", start_command))
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
