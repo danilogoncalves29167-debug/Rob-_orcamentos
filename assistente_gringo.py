@@ -1,4 +1,3 @@
-
 import os
 import asyncio
 from flask import Flask, request as flask_request, render_template_string
@@ -20,11 +19,11 @@ bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id == MEU_TOKEN_MESTRE:
-        await update.message.reply_text("Salve, chefe! Modo gravadora de luxo ativado. Manda o link do Spotify ou o nome da música!")
+        await update.message.reply_text("Salve, chefe! Modo gravadora blindada ativado. Manda o nome ou link do som!")
     else:
         await update.message.reply_text(
-            "🎵 **Baixador de Músicas MP3 (Spotify & Web)**\n\n"
-            "Mande o link de qualquer música do Spotify, YouTube Music ou apenas o nome da faixa para baixar o MP3 em alta qualidade.\n\n"
+            "🎵 **Baixador de Músicas VIP**\n\n"
+            "Mande o nome de qualquer música ou link para receber o arquivo MP3 direto no seu celular.\n\n"
             "(Você tem direito a 1 teste gratuito)."
         )
 
@@ -36,22 +35,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     termo_busca = update.message.text.strip()
 
     if user_id == MEU_TOKEN_MESTRE:
-        await update.message.reply_text("⚡ Baixando no modo patrão (ilimitado)...")
+        pass # Patrão passa direto
     else:
         usos_atuais = testes_usuarios.get(user_id, 0)
         if usos_atuais < 1:
             testes_usuarios[user_id] = usos_atuais + 1
-            await update.message.reply_text("Teste grátis liberado! Processando o som...")
+            await update.message.reply_text("Teste grátis liberado! Baixando o arquivo MP3...")
         else:
             await update.message.reply_text(
-                f"Seu teste gratuito acabou. Para continuar baixando músicas direto do Spotify e YouTube sem limite por apenas **R$ 25**, efetue a assinatura VIP:\n\n{LINK_PAGAMENTO_PIX}"
+                f"Seu teste gratuito acabou. Para continuar baixando músicas direto para o celular sem limite por apenas **R$ 25**, efetue a assinatura VIP:\n\n{LINK_PAGAMENTO_PIX}"
             )
             return
 
-    await update.message.reply_text("🎧 Buscando e convertendo o áudio em MP3, aguenta um segundo...")
+    status_msg = await update.message.reply_text("🎧 Convertendo a fita em MP3, aguenta um segundo...")
 
+    audio_path = None
     try:
-        # Se for link do Spotify ou texto comum, faz a busca/download otimizado
+        # Força a busca otimizada direto no YouTube para extrair o áudio bruto
         query = termo_busca if "http" in termo_busca else f"ytsearch1:{termo_busca}"
         
         ydl_opts = {
@@ -63,7 +63,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             }],
             'outtmpl': 'downloads/%(id)s.%(ext)s',
             'noplaylist': True,
-            'quiet': True
+            'quiet': True,
+            'no_warnings': True
         }
 
         os.makedirs("downloads", exist_ok=True)
@@ -74,24 +75,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 info = info['entries'][0]
             filename = ydl.prepare_filename(info)
             audio_path = os.path.splitext(filename)[0] + ".mp3"
-            titulo_musica = info.get('title', 'Áudio')
+            titulo_musica = info.get('title', 'Áudio Baixado')
 
-        # Envia o arquivo de áudio direto no chat do Telegram
+        # Envia o arquivo MP3 de verdade para rodar direto no celular do usuário
         with open(audio_path, 'rb') as audio_file:
             await update.message.reply_audio(
                 audio=audio_file,
-                caption=f"🎵 **{titulo_musica}**\n🔥 Baixado com sucesso!",
+                caption=f"🎵 **{titulo_musica}**\n🔥 Pronto para escutar no talo!",
                 title=titulo_musica
             )
-            
-        # Limpa o arquivo local para não estourar o armazenamento do Render
-        if os.path.exists(audio_path):
-            os.remove(audio_path)
+        
+        await status_msg.delete()
             
     except Exception as e:
-        await update.message.reply_text(
-            f"🔗 **Link de Acesso Alternativo / Web:**\nhttps://www.google.com/search?q={termo_busca.replace(' ', '+')}+baixar+mp3"
+        # Se der qualquer bosta, agora ele avisa direito em vez de mandar para o Google
+        await status_msg.edit_text(
+            f"❌ Deu ruim na conversão dessa música específica, mano. Tenta mandar o nome exato ou o link direto do YouTube/Spotify!"
         )
+    finally:
+        # Garante a limpeza do arquivo local no servidor
+        if audio_path and os.path.exists(audio_path):
+            try:
+                os.remove(audio_path)
+            except:
+                pass
 
 bot_app.add_handler(CommandHandler("start", start_command))
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
@@ -138,3 +145,4 @@ def telegram_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+    
