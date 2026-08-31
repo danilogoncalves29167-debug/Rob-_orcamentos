@@ -7,7 +7,7 @@ from telegram.ext import Application, ContextTypes, CommandHandler, MessageHandl
 
 app = Flask(__name__)
 
-# NOVO TOKEN OFICIAL DO TELEGRAM, ID MESTRE E LINK PIX
+# TOKEN OFICIAL, ID MESTRE E LINK PIX
 TELEGRAM_BOT_TOKEN = "8905719627:AAEkdRBkweO-62u_td0jyKfTZYaxGQNZNI0"
 MEU_TOKEN_MESTRE = "8964511789"
 LINK_PAGAMENTO_PIX = "https://mpago.la/33m86YJ"
@@ -16,7 +16,6 @@ testes_usuarios = {}
 
 bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
-# Comando /start
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id == MEU_TOKEN_MESTRE:
@@ -27,7 +26,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Envie o texto descrevendo a imagem que você deseja criar (você tem direito a 2 testes gratuitos)."
         )
 
-# Função para processar prompts de imagem
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
@@ -35,7 +33,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     prompt_usuario = update.message.text
 
-    # Se for o dono (ID mestre), passa direto sem gastar nada
     if user_id == MEU_TOKEN_MESTRE:
         await update.message.reply_text("⚡ Gerando imagem no modo patrão (ilimitado)...")
     else:
@@ -50,11 +47,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
+    # Mensagem de espera para o Telegram não dar timeout
+    status_msg = await update.message.reply_text("🎨 Criando a arte na alta, aguenta um segundo...")
+
     try:
         prompt_formatado = prompt_usuario.replace(" ", "%20")
         url_imagem_externa = f"https://image.pollinations.ai/prompt/{prompt_formatado}?width=1024&height=1024&nologo=true"
         
-        resposta_img = requests.get(url_imagem_externa, timeout=30)
+        # Timeout maior para dar tempo do motor entregar a imagem
+        resposta_img = requests.get(url_imagem_externa, timeout=60)
         if resposta_img.status_code == 200:
             os.makedirs("static", exist_ok=True)
             caminho_imagem = "static/gerado.png"
@@ -112,4 +113,4 @@ def telegram_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-    
+            
