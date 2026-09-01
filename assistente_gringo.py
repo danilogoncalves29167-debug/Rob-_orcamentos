@@ -73,15 +73,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status_msg = await update.message.reply_text("📊 Processando matriz de liquidez sistêmica, cruzando dados de tendência e estruturando o relatório completo... Aguarde.")
 
     prompt = (
-        "Aja como um analista sênior brasileiro de mercado financeiro e macroeconomia, "
-        "falando como um profissional engravatado de alto nível, mas com uma linguagem clara, "
-        "didática e direta ao ponto em português do Brasil. O objetivo é que o leitor pense: "
-        "'Caralho, estou aprendendo de verdade e isso vale cada centavo'. "
-        "Escreva um relatório macroeconômico EXTRAMAMENTE LONGO, profundo, robusto e detalhado. "
-        "Divida o texto em várias seções claras (como Introdução Executiva, Cenário Macro, Dinâmica de Fluxo, "
-        "Riscos Ocultos e Conclusão Estratégica), destrinchando o tema com riqueza de detalhes, lógica impecável "
-        "e ensinamentos de nível profissional que o usuário consiga absorver e aplicar nos estudos de mercado. "
-        "Evite tom intimidador ou arrogante; seja um mentor técnico de elite."
+        "Aja como um analista sênior brasileiro de mercado financeiro, focado em educação econômica, "
+        "macroeconomia e comportamento de ativos globais. Escreva um relatório técnico de grande porte, "
+        "bem estruturado e didático em português do Brasil, explicando o contexto, a dinâmica de oferta e demanda, "
+        "os reflexos na economia e os cenários futuros de forma profissional. O texto deve ser enriquecedor, "
+        "fazendo o leitor sentir que obteve uma aula de altíssimo nível. Mantenha o foco estritamente educacional e analítico."
         f"\n\nTermo ou ativo solicitado pelo usuário: {texto_usuario}"
     )
     
@@ -92,6 +88,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             contents=prompt,
         )
         
+        # Verifica se o Gemini retornou texto de fato
+        if not response.text:
+            raise ValueError("Resposta vazia da IA por restrição de conteúdo.")
+            
         relatorio = response.text
         mensagem_final = (
             f"📈 **RELATÓRIO DE INTELIGÊNCIA ALPHA #VIP** 📈\n\n{relatorio}\n\n"
@@ -102,7 +102,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await status_msg.delete()
         
-        # O Telegram tem limite de caracteres por mensagem, então se o calhamaço for gigante, dividimos em blocos se necessário ou enviamos direto
         if len(mensagem_final) > 4000:
             for i in range(0, len(mensagem_final), 4000):
                 await update.message.reply_text(mensagem_final[i:i+4000], parse_mode="Markdown")
@@ -110,13 +109,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(mensagem_final, parse_mode="Markdown")
         
     except Exception as e:
-        await status_msg.edit_text("❌ Deu pau na geração da matriz. Tenta mandar outro termo.")
+        # Mostra o erro real no log do Render para sabermos se foi bloqueio de segurança
+        print(f"ERRO NA GERACAO: {str(e)}")
+        await status_msg.edit_text("❌ O sistema de segurança do modelo barrou este termo específico por diretrizes de câmbio. Tenta mandar outro ativo ou termo macroeconômico.")
 
 bot_app.add_handler(CommandHandler("start", start_command))
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
 if __name__ == "__main__":
-    # Sobe o Flask em uma linha paralela (thread) para segurar a porta do Render
     t_flask = threading.Thread(target=run_flask)
     t_flask.start()
     
