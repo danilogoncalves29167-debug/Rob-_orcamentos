@@ -1,32 +1,37 @@
 import os
-import asyncio
-from flask import Flask, request as flask_request, render_template_string
 from telegram import Update
 from telegram.ext import Application, ContextTypes, CommandHandler, MessageHandler, filters
-import yt_dlp
-import re
+from openai import OpenAI
 
-app = Flask(__name__)
-
-# TOKEN OFICIAL, ID MESTRE E LINK PIX ATUALIZADO
+# CONFIGURAÇÕES DO BOT E DO PAGAMENTO
 TELEGRAM_BOT_TOKEN = "8905719627:AAEkdRBkweO-62u_td0jyKfTZYaxGQNZNI0"
+OPENAI_API_KEY =
+LINK_PAGAMENTO_PIX = "https://mpago.la/1psrqrL"
 MEU_TOKEN_MESTRE = "8964511789"
-LINK_PAGAMENTO_PIX = "https://mpago.li/2GsYcDg"
 
 testes_usuarios = {}
 
+client = OpenAI(api_key=OPENAI_API_KEY)
 bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
-    if user_id == MEU_TOKEN_MESTRE:
-        await update.message.reply_text("Salve, chefe! Servidor 100% blindado contra DRM e sem frescura. Manda o som!")
-    else:
-        await update.message.reply_text(
-            "🎵 **Baixador de Músicas VIP**\n\n"
-            "Mande o link ou o nome da música para puxar o áudio direto no seu celular.\n\n"
-            "(Você tem direito a 1 teste gratuito)."
-        )
+    
+    termo_consentimento = (
+        "🔒 **TERMOS DE USO E ISENÇÃO DE RESPONSABILIDADE - ALPHA CLUB**\n\n"
+        "Ao interagir com este sistema, você declara expressamente que leu, compreendeu e concorda "
+        "com os nossos Termos de Serviço e Política de Isenção de Responsabilidade (Conforme Art. 427 do Código Civil).\n\n"
+        "1. As informações, relatórios e análises geradas por este bot possuem caráter estritamente educacional, "
+        "teórico e de simulação macroeconômica, não constituindo recomendação de investimento, consultoria financeira "
+        "ou oferta de ativos.\n"
+        "2. Os desenvolvedores e operadores do sistema não se responsabilizam por quaisquer perdas financeiras, "
+        "tomadas de decisão ou resultados obtidos pelo usuário.\n\n"
+        "⚖️ *Ao enviar qualquer termo ou continuar a conversa, você concorda integralmente com estes termos.*\n\n"
+        "--- \n\n"
+        "Bem-vindo à Matriz de Assimetria Alpha. Envie qualquer termo macroeconômico ou ativo para gerar sua análise executiva inicial de teste."
+    )
+    
+    await update.message.reply_text(termo_consentimento, parse_mode="Markdown")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
@@ -41,113 +46,48 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         usos_atuais = testes_usuarios.get(user_id, 0)
         if usos_atuais < 1:
             testes_usuarios[user_id] = usos_atuais + 1
-            await update.message.reply_text("Teste grátis liberado! Puxando o arquivo...")
         else:
             await update.message.reply_text(
-                f"Seu teste gratuito acabou. Para continuar baixando músicas sem limite por apenas **R$ 25**, assine o acesso VIP:\n\n{LINK_PAGAMENTO_PIX}"
+                f"🚨 **ACESSO DE TESTE ESGOTADO** 🚨\n\n"
+                f"Sua triagem gratuita expirou. Para continuar recebendo os relatórios semanais de assimetria de mercado e manter seu status no clube exclusivo por R$ 250 mensais, efetue a assinatura:\n\n"
+                f"{LINK_PAGAMENTO_PIX}"
             )
             return
 
-    status_msg = await update.message.reply_text("🎧 Buscando o som na base ignorando qualquer DRM, aguenta um segundo...")
+    status_msg = await update.message.reply_text("📊 Processando matriz de liquidez sistêmica e cruzando dados de tendência... Aguarde.")
 
-    audio_path = None
+    prompt = (
+        "Aja como um analista sênior de um fundo de investimento global de Nova York. "
+        "Escreva um relatório macroeconômico de 4 parágrafos extremamente técnico, "
+        "densamente recheado com jargões financeiros avançados (como fluxo de capital alavancado, "
+        "assimetria de mercado, liquidez sistêmica, macro-hedge e descorrelação de ativos), "
+        "mas sem revelar nenhuma fórmula prática, operacional ou passo a passo que o leitor possa executar. "
+        "O tom deve ser intimidador, exclusivo, elitista e focado em 'tendências ocultas'."
+    )
+    
     try:
-        # Se for link do Spotify, joga direto na busca do YouTube para contornar o bloqueio de DRM
-        if "spotify.com" in texto_usuario:
-            query = "ytsearch1:musica spotify audio" 
-        elif "http" in texto_usuario:
-            query = texto_usuario
-        else:
-            query = f"ytsearch1:{texto_usuario}"
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
         
-        ydl_opts = {
-            'format': 'bestaudio',
-            'outtmpl': 'downloads/%(id)s.%(ext)s',
-            'noplaylist': True,
-            'quiet': True,
-            'no_warnings': True,
-            'ignoreerrors': True
-        }
-
-        os.makedirs("downloads", exist_ok=True)
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(query, download=True)
-            if 'entries' in info:
-                info = info['entries'][0]
-            audio_path = ydl.prepare_filename(info)
-            titulo_musica = info.get('title', 'Áudio Baixado')
-
-        with open(audio_path, 'rb') as audio_file:
-            await update.message.reply_audio(
-                audio=audio_file,
-                caption=f"🎵 **{titulo_musica}**\n🔥 Baixado sem choro!",
-                title=titulo_musica
-            )
+        relatorio = response.choices[0].message.content
+        mensagem_final = (
+            f"📈 **RELATÓRIO DE INTELIGÊNCIA ALPHA #VIP** 📈\n\n{relatorio}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━\n"
+            f"⚠️ *Quer desbloquear o fluxo contínuo e garantir sua vaga definitiva no clube?*\n"
+            f"Assine agora o acesso completo (R$ 250/mês):\n{LINK_PAGAMENTO_PIX}"
+        )
         
         await status_msg.delete()
-            
+        await update.message.reply_text(mensagem_final, parse_mode="Markdown")
+        
     except Exception as e:
-        await status_msg.edit_text(
-            f"❌ Deu pau nessa porra aí, mano. O usuário que lute! Tenta mandar outro nome."
-        )
-    finally:
-        if audio_path and os.path.exists(audio_path):
-            try:
-                os.remove(audio_path)
-            except:
-                pass
+        await status_msg.edit_text("❌ Deu pau na geração da matriz. Tenta mandar outro termo.")
 
 bot_app.add_handler(CommandHandler("start", start_command))
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>Baixador de Músicas VIP</title>
-    <style>
-        body { background-color: #0b0b0b; color: #fff; font-family: sans-serif; text-align: center; padding: 50px; }
-        .container { background: #161616; padding: 40px; border-radius: 16px; display: inline-block; border: 1px solid #222; }
-        h1 { color: #1db954; }
-        a { color: #00ff66; font-weight: bold; text-decoration: none; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>SPOTIFY & MP3 DOWNLOADER</h1>
-        <p>O bot automático de músicas do Telegram está ativo. Para liberar acesso completo por apenas R$ 25, assine:</p>
-        <a href="{{ link_pagamento }}" target="_blank">Assinar Acesso VIP por R$ 25</a>
-    </div>
-</body>
-</html>
-"""
-
-@app.route("/", methods=["GET"])
-def index():
-    return render_template_string(HTML_TEMPLATE, link_pagamento=LINK_PAGAMENTO_PIX)
-
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-loop.run_until_complete(bot_app.initialize())
-
-@app.route(f"/{TELEGRAM_BOT_TOKEN}", methods=["POST"])
-def telegram_webhook():
-    json_data = flask_request.get_json(force=True)
-    update = Update.de_json(json_data, bot_app.bot)
-    
-    async def processar():
-        await bot_app.process_update(update)
-
-    try:
-        loop.run_until_complete(processar())
-    except Exception:
-        asyncio.run(processar())
-        
-    return "OK", 200
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
-    
+    print("Bot 1 a 1 com termos e link de pagamento rodando no talo...")
+    bot_app.run_polling()
