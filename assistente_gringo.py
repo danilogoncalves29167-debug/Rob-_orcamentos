@@ -1,7 +1,20 @@
 import os
+import threading
+from flask import Flask
 from telegram import Update
 from telegram.ext import Application, ContextTypes, CommandHandler, MessageHandler, filters
 from openai import OpenAI
+
+# Servidor Flask falso apenas para abrir a porta que o Render exige
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Alpha Club Bot está operando na escuta."
+
+def run_flask():
+    porta = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=porta)
 
 # CONFIGURAÇÕES DO BOT E DO PAGAMENTO
 TELEGRAM_BOT_TOKEN = "8905719627:AAEkdRBkweO-62u_td0jyKfTZYaxGQNZNI0"
@@ -89,5 +102,10 @@ bot_app.add_handler(CommandHandler("start", start_command))
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
 if __name__ == "__main__":
-    print("Bot 1 a 1 com termos e link de pagamento rodando no talo...")
+    # Sobe o Flask em uma linha paralela (thread) para segurar a porta do Render
+    t_flask = threading.Thread(target=run_flask)
+    t_flask.start()
+    
+    print("Servidor web falso ativo e bot de Telegram rodando em polling...")
     bot_app.run_polling()
+    
