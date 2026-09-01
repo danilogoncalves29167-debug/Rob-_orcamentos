@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import threading
 from flask import Flask
@@ -69,22 +70,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-    status_msg = await update.message.reply_text("📊 Processando matriz de liquidez sistêmica e cruzando dados de tendência... Aguarde.")
+    status_msg = await update.message.reply_text("📊 Processando matriz de liquidez sistêmica, cruzando dados de tendência e estruturando o relatório completo... Aguarde.")
 
     prompt = (
-        "Aja como um analista sênior de um fundo de investimento global de Nova York. "
-        "Escreva um relatório macroeconômico de 4 parágrafos extremamente técnico, "
-        "densamente recheado com jargões financeiros avançados (como fluxo de capital alavancado, "
-        "assimetria de mercado, liquidez sistêmica, macro-hedge e descorrelação de ativos), "
-        "mas sem revelar nenhuma fórmula prática, operacional ou passo a passo que o leitor possa executar. "
-        "O tom deve ser intimidador, exclusivo, elitista e focado em 'tendências ocultas'."
+        "Aja como um analista sênior brasileiro de mercado financeiro e macroeconomia, "
+        "falando como um profissional engravatado de alto nível, mas com uma linguagem clara, "
+        "didática e direta ao ponto em português do Brasil. O objetivo é que o leitor pense: "
+        "'Caralho, estou aprendendo de verdade e isso vale cada centavo'. "
+        "Escreva um relatório macroeconômico EXTRAMAMENTE LONGO, profundo, robusto e detalhado. "
+        "Divida o texto em várias seções claras (como Introdução Executiva, Cenário Macro, Dinâmica de Fluxo, "
+        "Riscos Ocultos e Conclusão Estratégica), destrinchando o tema com riqueza de detalhes, lógica impecável "
+        "e ensinamentos de nível profissional que o usuário consiga absorver e aplicar nos estudos de mercado. "
+        "Evite tom intimidador ou arrogante; seja um mentor técnico de elite."
         f"\n\nTermo ou ativo solicitado pelo usuário: {texto_usuario}"
     )
     
     try:
-        # Chamada oficial da API gratuita do Gemini
+        # Chamada oficial com o modelo estável do Gemini
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-1.5-flash',
             contents=prompt,
         )
         
@@ -97,7 +101,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
         await status_msg.delete()
-        await update.message.reply_text(mensagem_final, parse_mode="Markdown")
+        
+        # O Telegram tem limite de caracteres por mensagem, então se o calhamaço for gigante, dividimos em blocos se necessário ou enviamos direto
+        if len(mensagem_final) > 4000:
+            for i in range(0, len(mensagem_final), 4000):
+                await update.message.reply_text(mensagem_final[i:i+4000], parse_mode="Markdown")
+        else:
+            await update.message.reply_text(mensagem_final, parse_mode="Markdown")
         
     except Exception as e:
         await status_msg.edit_text("❌ Deu pau na geração da matriz. Tenta mandar outro termo.")
