@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
 import os
-import threading
+import logging
 from flask import Flask
 from telegram import Update
 from telegram.ext import Application, ContextTypes, CommandHandler, MessageHandler, filters
 from google import genai
 
-# Servidor Flask falso apenas para abrir a porta que o Render exige
+# Configura logs para aparecerem bonitinhos no Render
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Servidor Flask essencial para o Render manter a porta ativa
 app = Flask(__name__)
 
 @app.route('/')
 def home():
     return "Alpha Club Bot está operando na escuta."
-
-def run_flask():
-    porta = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=porta)
 
 # CONFIGURAÇÕES DO BOT E DO PAGAMENTO
 TELEGRAM_BOT_TOKEN = "8905719627:AAEkdRBkweO-62u_td0jyKfTZYaxGQNZNI0"
@@ -24,11 +24,9 @@ MEU_TOKEN_MESTRE = "8964511789"
 
 testes_usuarios = {}
 
-# Inicializa o cliente do Google Gemini usando a variável de ambiente gratuita
+# Inicializa o cliente do Google Gemini
 gemini_api_key = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=gemini_api_key)
-
-bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
@@ -81,7 +79,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
     try:
-        # Chamada otimizada com o modelo oficial do Gemini
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
@@ -102,17 +99,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(mensagem_final, parse_mode="Markdown")
         
     except Exception as e:
-        print(f"ERRO NA GERACAO: {str(e)}")
+        logger.error(f"ERRO NA GERACAO: {str(e)}")
         await status_msg.edit_text("❌ Ocorreu um pico de instabilidade na matriz ao processar este termo. Tenta mandar novamente.")
 
-bot_app.add_handler(CommandHandler("start", start_command))
-bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+def main():
+    # Constrói a aplicação do Telegram
+    bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    
+    bot_app.add_handler(CommandHandler("start", start_command))
+    bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-if __name__ == "__main__":
-    t_flask = threading.Thread(target=run_flask)
+    # Pega a porta que o Render exige (padrão 10000)
+    porta = int(os.environ.get("PORT", 10000))
+    
+    # Roda o Flask em segundo plano usando o próprio utilitário do Render/Gunicorn ou Thread limpa
+    import threading
+    t_flask = threading.Thread(target=lambda: app.run(host="0.0.0.0", port=porta, debug=False, use_reloader=False))
+    t_flask.daemon = True
     t_flask.start()
     
-    print("Servidor web falso ativo e bot de Telegram rodando com Gemini...")
-    # Timeout esticado para o Telegram aguentar o tranco sem derrubar a conexão
-    bot_app.run_polling(drop_pending_updates=True, timeout=30, read_timeout=30, write_timeout=30, connect_timeout=30)
+    logger.info("Servidor Flask e Bot do Telegram iniciando...")
+    
+    # Inicia o bot do Telegram de forma síncrona na thread principal
+    bot_app.run_polling(drop_pending_updates=True)
+
+if __name__ == "__main__":
+    main()
     
