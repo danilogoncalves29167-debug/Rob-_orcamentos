@@ -3,7 +3,7 @@ import threading
 from flask import Flask
 from telegram import Update
 from telegram.ext import Application, ContextTypes, CommandHandler, MessageHandler, filters
-from openai import OpenAI
+from google import genai
 
 # Servidor Flask falso apenas para abrir a porta que o Render exige
 app = Flask(__name__)
@@ -18,13 +18,15 @@ def run_flask():
 
 # CONFIGURAÇÕES DO BOT E DO PAGAMENTO
 TELEGRAM_BOT_TOKEN = "8905719627:AAEkdRBkweO-62u_td0jyKfTZYaxGQNZNI0"
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 LINK_PAGAMENTO_PIX = "https://mpago.la/1psrqrL"
 MEU_TOKEN_MESTRE = "8964511789"
 
 testes_usuarios = {}
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+# Inicializa o cliente do Google Gemini usando a variável de ambiente gratuita
+gemini_api_key = os.getenv("GEMINI_API_KEY")
+client = genai.Client(api_key=gemini_api_key)
+
 bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -76,15 +78,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "assimetria de mercado, liquidez sistêmica, macro-hedge e descorrelação de ativos), "
         "mas sem revelar nenhuma fórmula prática, operacional ou passo a passo que o leitor possa executar. "
         "O tom deve ser intimidador, exclusivo, elitista e focado em 'tendências ocultas'."
+        f"\n\nTermo ou ativo solicitado pelo usuário: {texto_usuario}"
     )
     
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}]
+        # Chamada oficial da API gratuita do Gemini
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
         )
         
-        relatorio = response.choices[0].message.content
+        relatorio = response.text
         mensagem_final = (
             f"📈 **RELATÓRIO DE INTELIGÊNCIA ALPHA #VIP** 📈\n\n{relatorio}\n\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
@@ -106,6 +110,6 @@ if __name__ == "__main__":
     t_flask = threading.Thread(target=run_flask)
     t_flask.start()
     
-    print("Servidor web falso ativo e bot de Telegram rodando em polling...")
+    print("Servidor web falso ativo e bot de Telegram rodando com Gemini...")
     bot_app.run_polling()
     
