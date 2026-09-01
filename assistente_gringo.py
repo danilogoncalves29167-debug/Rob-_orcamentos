@@ -82,9 +82,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
     try:
-        # Chamada limpa do Gemini usando o modelo estável
+        # Chamada corrigida usando o modelo oficial suportado pelo SDK atual do Google GenAI
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-2.5-flash',
             contents=prompt,
         )
         
@@ -108,7 +108,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(mensagem_final, parse_mode="Markdown")
         
     except Exception as e:
-        print(f"ERRO: {str(e)}")
+        print(f"ERRO NA GERACAO: {str(e)}")
         await status_msg.edit_text("❌ Ocorreu um pico de instabilidade na matriz ao processar este termo. Tenta mandar novamente.")
 
 bot_app.add_handler(CommandHandler("start", start_command))
@@ -119,6 +119,5 @@ if __name__ == "__main__":
     t_flask.start()
     
     print("Servidor web falso ativo e bot de Telegram rodando com Gemini...")
-    # drop_pending_updates=True limpa qualquer comando preso na fila e evita conflito de instâncias
     bot_app.run_polling(drop_pending_updates=True)
     
