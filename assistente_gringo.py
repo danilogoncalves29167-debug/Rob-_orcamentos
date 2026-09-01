@@ -6,7 +6,7 @@ from telegram import Update
 from telegram.ext import Application, ContextTypes, CommandHandler, MessageHandler, filters
 from google import genai
 
-# Configura logs para aparecerem bonitinhos no Render
+# Configura logs para aparecerem no Render
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -32,17 +32,14 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     
     termo_consentimento = (
-        "🔒 **TERMOS DE USO E ISENÇÃO DE RESPONSABILIDADE - ALPHA CLUB**\n\n"
+        "🔒 *TERMOS DE USO E ISENÇÃO DE RESPONSABILIDADE - ALPHA CLUB*\n\n"
         "Ao interagir com este sistema, você declara expressamente que leu, compreendeu e concorda "
-        "com os nossos Termos de Serviço e Política de Isenção de Responsabilidade (Conforme Art. 427 do Código Civil).\n\n"
-        "1. As informações, relatórios e análises geradas por este bot possuem caráter estritamente educacional, "
-        "teórico e de simulação macroeconômica, não constituindo recomendação de investimento, consultoria financeira "
-        "ou oferta de ativos.\n"
-        "2. Os desenvolvedores e operadores do sistema não se responsabilizam por quaisquer perdas financeiras, "
-        "tomadas de decisão ou resultados obtidos pelo usuário.\n\n"
-        "⚖️ *Ao enviar qualquer termo ou continuar a conversa, você concorda integralmente com estes termos.*\n\n"
+        "com os nossos Termos de Serviço e Política de Isenção de Responsabilidade.\n\n"
+        "1. As informações e análises geradas possuem caráter estritamente educacional e teórico.\n"
+        "2. Os desenvolvedores não se responsabilizam por decisões ou resultados financeiros.\n\n"
+        "⚖️ *Ao enviar qualquer termo, você concorda integralmente com estes termos.*\n\n"
         "--- \n\n"
-        "Bem-vindo à Matriz de Assimetria Alpha. Envie qualquer termo macroeconômico ou ativo para gerar sua análise executiva inicial de teste."
+        "Bem-vindo à Matriz Alpha. Envie qualquer termo macroeconômico ou ativo para gerar sua análise executiva inicial."
     )
     
     await update.message.reply_text(termo_consentimento, parse_mode="Markdown")
@@ -62,12 +59,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             testes_usuarios[user_id] = usos_atuais + 1
         else:
             await update.message.reply_text(
-                f"🚨 **ACESSO DE TESTE ESGOTADO** 🚨\n\n"
-                f"Sua triagem gratuita expirou. Para continuar recebendo os relatórios semanais de assimetria de mercado e manter seu status no clube exclusivo por R$ 250 mensais, efetue a assinatura:\n\n"
-                f"{LINK_PAGAMENTO_PIX}"
+                f"🚨 *ACESSO DE TESTE ESGOTADO* 🚨\n\n"
+                f"Sua triagem gratuita expirou. Para continuar recebendo os relatórios e manter seu status no clube por R$ 250 mensais, efetue a assinatura:\n\n"
+                f"{LINK_PAGAMENTO_PIX}",
+                parse_mode="Markdown"
             )
             return
 
+    # Manda a mensagem inicial de status para ser editada depois (evita sumir mensagens)
     status_msg = await update.message.reply_text("📊 Processando análise de inteligência de mercado... Aguarde.")
 
     prompt = (
@@ -88,41 +87,40 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             raise ValueError("Resposta vazia da IA.")
             
         relatorio = response.text
+        
+        # Limpa eventuais marcações markdown quebradas que o Gemini possa mandar para não dar crash no Telegram
+        relatorio_limpo = relatorio.replace("*", "").replace("_", "")
+        
         mensagem_final = (
-            f"📈 **RELATÓRIO DE INTELIGÊNCIA ALPHA #VIP** 📈\n\n{relatorio}\n\n"
+            f"📈 *RELATÓRIO DE INTELIGÊNCIA ALPHA #VIP* 📈\n\n{relatorio_limpo}\n\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
-            f"⚠️ *Quer desbloquear o fluxo contínuo e garantir sua vaga definitiva no clube?*\n"
+            f"⚠️ *Quer desbloquear o fluxo contínuo e garantir sua vaga definitiva?*\n"
             f"Assine agora o acesso completo (R$ 250/mês):\n{LINK_PAGAMENTO_PIX}"
         )
         
-        await status_msg.delete()
-        await update.message.reply_text(mensagem_final, parse_mode="Markdown")
+        # Edita a mensagem anterior em vez de apagar, garantindo que o texto nunca suma
+        await status_msg.edit_text(mensagem_final, parse_mode="Markdown")
         
     except Exception as e:
         logger.error(f"ERRO NA GERACAO: {str(e)}")
         await status_msg.edit_text("❌ Ocorreu um pico de instabilidade na matriz ao processar este termo. Tenta mandar novamente.")
 
 def main():
-    # Constrói a aplicação do Telegram
     bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     
     bot_app.add_handler(CommandHandler("start", start_command))
     bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    # Pega a porta que o Render exige (padrão 10000)
     porta = int(os.environ.get("PORT", 10000))
     
-    # Roda o Flask em segundo plano usando o próprio utilitário do Render/Gunicorn ou Thread limpa
     import threading
     t_flask = threading.Thread(target=lambda: app.run(host="0.0.0.0", port=porta, debug=False, use_reloader=False))
     t_flask.daemon = True
     t_flask.start()
     
     logger.info("Servidor Flask e Bot do Telegram iniciando...")
-    
-    # Inicia o bot do Telegram de forma síncrona na thread principal
     bot_app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
-    
+            
