@@ -1,6 +1,3 @@
-
 flask
 python-telegram-bot
-openai
-schedule
-
+google-genai
