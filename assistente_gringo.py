@@ -70,19 +70,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-    status_msg = await update.message.reply_text("📊 Processando matriz de liquidez sistêmica, cruzando dados de tendência e estruturando o relatório completo... Aguarde.")
+    status_msg = await update.message.reply_text("📊 Processando análise de inteligência de mercado... Aguarde.")
 
     prompt = (
-        "Aja como um analista sênior brasileiro de mercado financeiro, focado em educação econômica, "
-        "macroeconomia e comportamento de ativos globais. Escreva um relatório técnico de grande porte, "
-        "bem estruturado e didático em português do Brasil, explicando o contexto, a dinâmica de oferta e demanda, "
-        "os reflexos na economia e os cenários futuros de forma profissional. O texto deve ser enriquecedor, "
-        "fazendo o leitor sentir que obteve uma aula de altíssimo nível. Mantenha o foco estritamente educacional e analítico."
+        "Aja como um analista sênior brasileiro de mercado financeiro, direto ao ponto e altamente técnico. "
+        "Escreva um relatório executivo de tamanho médio, rico em conceitos de macroeconomia, dinâmica de preços "
+        "e comportamento de ativos, explicando o tema com clareza em português do Brasil. O foco é entregar "
+        "um conteúdo de alto valor educacional que faça o leitor absorver a lógica de mercado instantaneamente."
         f"\n\nTermo ou ativo solicitado pelo usuário: {texto_usuario}"
     )
     
     try:
-        # Chamada corrigida usando o modelo oficial suportado pelo SDK atual do Google GenAI
+        # Chamada otimizada com o modelo oficial do Gemini
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
@@ -100,12 +99,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
         await status_msg.delete()
-        
-        if len(mensagem_final) > 4000:
-            for i in range(0, len(mensagem_final), 4000):
-                await update.message.reply_text(mensagem_final[i:i+4000], parse_mode="Markdown")
-        else:
-            await update.message.reply_text(mensagem_final, parse_mode="Markdown")
+        await update.message.reply_text(mensagem_final, parse_mode="Markdown")
         
     except Exception as e:
         print(f"ERRO NA GERACAO: {str(e)}")
@@ -119,5 +113,6 @@ if __name__ == "__main__":
     t_flask.start()
     
     print("Servidor web falso ativo e bot de Telegram rodando com Gemini...")
-    bot_app.run_polling(drop_pending_updates=True)
+    # Timeout esticado para o Telegram aguentar o tranco sem derrubar a conexão
+    bot_app.run_polling(drop_pending_updates=True, timeout=30, read_timeout=30, write_timeout=30, connect_timeout=30)
     
