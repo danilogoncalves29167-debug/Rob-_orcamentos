@@ -82,15 +82,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
     try:
-        # Chamada oficial com o modelo estável do Gemini
+        # Chamada limpa do Gemini usando o modelo estável
         response = client.models.generate_content(
             model='gemini-1.5-flash',
             contents=prompt,
         )
         
-        # Verifica se o Gemini retornou texto de fato
         if not response.text:
-            raise ValueError("Resposta vazia da IA por restrição de conteúdo.")
+            raise ValueError("Resposta vazia da IA.")
             
         relatorio = response.text
         mensagem_final = (
@@ -109,9 +108,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(mensagem_final, parse_mode="Markdown")
         
     except Exception as e:
-        # Mostra o erro real no log do Render para sabermos se foi bloqueio de segurança
-        print(f"ERRO NA GERACAO: {str(e)}")
-        await status_msg.edit_text("❌ O sistema de segurança do modelo barrou este termo específico por diretrizes de câmbio. Tenta mandar outro ativo ou termo macroeconômico.")
+        print(f"ERRO: {str(e)}")
+        await status_msg.edit_text("❌ Ocorreu um pico de instabilidade na matriz ao processar este termo. Tenta mandar novamente.")
 
 bot_app.add_handler(CommandHandler("start", start_command))
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
@@ -121,5 +119,6 @@ if __name__ == "__main__":
     t_flask.start()
     
     print("Servidor web falso ativo e bot de Telegram rodando com Gemini...")
-    bot_app.run_polling()
+    # drop_pending_updates=True limpa qualquer comando preso na fila e evita conflito de instâncias
+    bot_app.run_polling(drop_pending_updates=True)
     
