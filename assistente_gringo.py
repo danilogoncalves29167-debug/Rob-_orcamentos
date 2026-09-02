@@ -25,18 +25,13 @@ gemini_api_key = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=gemini_api_key)
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
-    
-    termo_consentimento = (
-        "TERMOS DE USO E ISENCAO DE RESPONSABILIDADE - ALPHA CLUB\n\n"
-        "Ao interagir com este sistema, você declara expressamente que leu, compreendeu e concorda "
-        "com os nossos Termos de Serviço.\n\n"
-        "1. As informações e análises geradas possuem caráter estritamente educacional e teórico.\n"
-        "2. Os desenvolvedores não se responsabilizam por decisões ou resultados financeiros.\n\n"
-        "Envie qualquer termo macroeconômico ou ativo para gerar sua análise executiva inicial."
+    # Resposta direta e imediata para testar se o bot acordou
+    mensagem_boas_vindas = (
+        "ALPHA CLUB - MATRIZ DE INTELIGÊNCIA MACRO\n\n"
+        "Sistema online e operacional. Envie o nome de qualquer ativo, moeda ou termo macroeconômico "
+        "para gerar sua análise executiva de teste."
     )
-    
-    await update.message.reply_text(termo_consentimento)
+    await update.message.reply_text(mensagem_boas_vindas)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
@@ -79,11 +74,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
         relatorio = response.text
         
-        # Trava de segurança contra o erro Message_too_long (corta se passar de 3500 caracteres)
         if len(relatorio) > 3500:
             relatorio = relatorio[:3500] + "\n\n[Relatório resumido por limite de espaço]"
             
-        # Remove caracteres especiais para evitar qualquer crash de markdown no Telegram
         relatorio_limpo = relatorio.replace("*", "").replace("_", "").replace("`", "")
         
         mensagem_final = (
@@ -117,3 +110,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
